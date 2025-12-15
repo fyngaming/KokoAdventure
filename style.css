@@ -2643,3 +2643,164 @@ footer {
     display: block !important;
 }
 
+ /* ============================================= */
+/* STYLES UNTUK FULLSCREEN GAME MODE */
+/* ============================================= */
+
+/* Container game di fullscreen */
+:fullscreen .game-container,
+:-webkit-full-screen .game-container,
+:-moz-full-screen .game-container,
+:-ms-fullscreen .game-container {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: #1e3a2a !important;
+    overflow: hidden !important;
+    position: relative !important;
+}
+
+/* Canvas di fullscreen */
+:fullscreen #gameCanvas,
+:-webkit-full-screen #gameCanvas,
+:-moz-full-screen #gameCanvas,
+:-ms-fullscreen #gameCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    display: block !important;
+    background: #87CEEB !important;
+}
+
+/* Sembunyikan elemen yang tidak perlu di fullscreen */
+:fullscreen .instructions,
+:-webkit-full-screen .instructions,
+:-moz-full-screen .instructions,
+:-ms-fullscreen .instructions,
+:fullscreen .level-selector,
+:-webkit-full-screen .level-selector,
+:-moz-full-screen .level-selector,
+:-ms-fullscreen .level-selector,
+:fullscreen footer,
+:-webkit-full-screen footer,
+:-moz-full-screen footer,
+:-ms-fullscreen footer,
+:fullscreen .booster-display,
+:-webkit-full-screen .booster-display,
+:-moz-full-screen .booster-display,
+:-ms-fullscreen .booster-display,
+:fullscreen header,
+:-webkit-full-screen header,
+:-moz-full-screen header,
+:-ms-fullscreen header {
+    display: none !important;
+}
+
+/* Mobile controls di fullscreen */
+.mobile-controls.fullscreen-visible {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 1000 !important;
+    background: rgba(30, 58, 42, 0.95) !important;
+    border: 3px solid #4CAF50 !important;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
+    backdrop-filter: blur(5px);
+    width: 90% !important;
+    max-width: 800px !important;
+    padding: 15px !important;
+    border-radius: 15px !important;
+    min-height: 150px !important;
+}
+
+/* Tombol kontrol di dalam fullscreen */
+.fullscreen-game-controls {
+    animation: fadeIn 0.3s ease-out !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Optimasi untuk landscape mobile */
+@media (orientation: landscape) {
+    .mobile-controls.fullscreen-visible {
+        bottom: 10px !important;
+        padding: 10px !important;
+        min-height: 130px !important;
+        max-width: 95% !important;
+    }
+    
+    .fullscreen-game-controls {
+        bottom: 140px !important;
+    }
+}
+
+/* Optimasi untuk portrait mobile */
+@media (orientation: portrait) {
+    .mobile-controls.fullscreen-visible {
+        bottom: 10px !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        min-height: 200px !important;
+    }
+    
+    .fullscreen-game-controls {
+        bottom: 220px !important;
+    }
+}
+
+/* Style untuk tombol di fullscreen */
+.fullscreen-game-controls .btn {
+    transition: all 0.3s ease !important;
+}
+
+.fullscreen-game-controls .btn:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
+}
+
+/* Responsive untuk layar kecil */
+@media (max-width: 768px) {
+    .fullscreen-game-controls {
+        max-width: 95% !important;
+        padding: 10px !important;
+        gap: 8px !important;
+    }
+    
+    .fullscreen-game-controls .btn {
+        min-width: 100px !important;
+        padding: 8px 12px !important;
+        font-size: 0.8rem !important;
+    }
+}
+
+/* ============================================= */
+/* LANDSCAPE FORCE STYLES UNTUK MOBILE */
+/* ============================================= */
+@media screen and (orientation: portrait) and (max-width: 768px) {
+    :fullscreen,
+    :-webkit-full-screen,
+    :-moz-full-screen,
+    :-ms-fullscreen {
+        transform: rotate(90deg);
+        transform-origin: center;
+        width: 100vh;
+        height: 100vw;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(90deg);
+    }
+}

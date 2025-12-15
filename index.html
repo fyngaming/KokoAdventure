@@ -277,7 +277,7 @@
             <canvas id="gameCanvas" width="1000" height="600"></canvas>
             <div class="game-controls">
                 <button id="startBtn" class="btn btn-start">
-                    <i class="fas fa-play"></i> Mulai Game
+                    <i class="fas fa-play"></i> Mulai Game (Fullscreen)
                 </button>
                 <button id="pauseBtn" class="btn btn-pause">
                     <i class="fas fa-pause"></i> Jeda
@@ -288,9 +288,7 @@
                 <button id="soundBtn" class="btn btn-sound">
                     <i class="fas fa-volume-up"></i> Suara
                 </button>
-                <button id="fullscreenBtn" class="btn btn-fullscreen">
-                    <i class="fas fa-expand"></i> Layar Penuh
-                </button>
+                
                 <button id="menuBtn" class="btn btn-menu">
                     <i class="fas fa-home"></i> Menu Utama
                 </button>
@@ -1320,8 +1318,342 @@
             if (overlay) overlay.classList.remove('show');
             if (popup) popup.classList.remove('show');
         };
+
         
         console.log("🎮 Koko Adventure v4.0 - Sistem Popup Baru Siap!");
+
+        // =============================================
+// SISTEM MULAI GAME LANGSUNG FULLSCREEN LANDSCAPE
+// =============================================
+
+let isFullscreenMode = false;
+
+// Fungsi untuk memulai game dengan fullscreen landscape
+function startGameFullscreen() {
+    console.log("🚀 Memulai game dengan fullscreen landscape...");
+    
+    // 1. Masuk ke fullscreen
+    const gameContainer = document.getElementById('gameContainer') || document.querySelector('.game-container');
+    const canvas = document.getElementById('gameCanvas');
+    
+    if (!document.fullscreenElement) {
+        // Request fullscreen
+        const element = gameContainer || canvas || document.documentElement;
+        
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+            element.webkitRequestFullscreen();
+        } else if (element.msRequestFullscreen) {
+            element.msRequestFullscreen();
+        }
+        
+        isFullscreenMode = true;
+        
+        // 2. Terapkan landscape mode di mobile
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            console.log("📱 Mobile device detected - forcing landscape");
+            forceLandscapeMode();
+        }
+        
+        // 3. Sembunyikan elemen yang tidak perlu
+        hideNonGameElements();
+        
+        // 4. Pindahkan tombol-tombol ke dalam game fullscreen
+        moveControlsToFullscreen();
+        
+        // 5. Mulai game (jika ada fungsi startGame)
+        if (window.startGame) {
+            setTimeout(() => {
+                startGame();
+                console.log("✅ Game dimulai dalam mode fullscreen landscape");
+            }, 500);
+        }
+    } else {
+        // Jika sudah fullscreen, mulai game saja
+        if (window.startGame) {
+            startGame();
+        }
+    }
+}
+
+// Fungsi untuk memaksa landscape di mobile
+function forceLandscapeMode() {
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    if (viewportMeta) {
+        // Set orientasi landscape
+        viewportMeta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape";
+    }
+    
+    // Style untuk memaksa landscape
+    const style = document.createElement('style');
+    style.textContent = `
+        @media screen and (orientation: portrait) {
+            :fullscreen, :-webkit-full-screen, :-moz-full-screen, :-ms-fullscreen {
+                transform: rotate(90deg);
+                transform-origin: center;
+                width: 100vh;
+                height: 100vw;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) rotate(90deg);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// Fungsi untuk menyembunyikan elemen yang tidak perlu di fullscreen
+function hideNonGameElements() {
+    const elementsToHide = [
+        '.instructions',
+        '.level-selector',
+        'footer',
+        '.booster-display',
+        '.container > header'
+    ];
+    
+    elementsToHide.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            el.style.display = 'none';
+        });
+    });
+    
+    // Ubah tampilan container game
+    const gameContainer = document.querySelector('.game-container');
+    if (gameContainer) {
+        gameContainer.style.width = '100%';
+        gameContainer.style.height = '100vh';
+        gameContainer.style.margin = '0';
+        gameContainer.style.padding = '0';
+        gameContainer.style.borderRadius = '0';
+        gameContainer.style.border = 'none';
+        gameContainer.style.background = '#1e3a2a';
+    }
+}
+
+// Fungsi untuk memindahkan tombol ke dalam game fullscreen
+function moveControlsToFullscreen() {
+    const gameControls = document.querySelector('.game-controls');
+    const gameCanvas = document.getElementById('gameCanvas');
+    
+    if (gameControls && gameCanvas) {
+        // Buat container untuk tombol di dalam game
+        const inGameControls = document.createElement('div');
+        inGameControls.className = 'fullscreen-game-controls';
+        inGameControls.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+            background: rgba(30, 58, 42, 0.95);
+            padding: 15px;
+            border-radius: 15px;
+            border: 3px solid #4CAF50;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 90%;
+        `;
+        
+        // Clone tombol-tombol
+        const buttons = gameControls.querySelectorAll('.btn');
+        buttons.forEach(btn => {
+            const clonedBtn = btn.cloneNode(true);
+            clonedBtn.style.cssText = `
+                min-width: 120px;
+                padding: 10px 15px;
+                font-size: 0.9rem;
+                margin: 5px;
+            `;
+            
+            // Atur event listener untuk tombol yang diklon
+            if (clonedBtn.id === 'startBtn') {
+                clonedBtn.innerHTML = '<i class="fas fa-redo"></i> Ulangi';
+                clonedBtn.addEventListener('click', function() {
+                    if (window.restartGame) {
+                        restartGame();
+                    }
+                });
+            } else if (clonedBtn.id === 'pauseBtn') {
+                clonedBtn.addEventListener('click', function() {
+                    if (window.togglePause) {
+                        togglePause();
+                    }
+                });
+            } else if (clonedBtn.id === 'resetBtn') {
+                clonedBtn.addEventListener('click', function() {
+                    if (window.restartGame) {
+                        restartGame();
+                    }
+                });
+            } else if (clonedBtn.id === 'soundBtn') {
+                clonedBtn.addEventListener('click', function() {
+                    // Handle sound toggle
+                    const music = document.getElementById('backgroundMusic');
+                    if (music) {
+                        if (music.paused) {
+                            music.play();
+                            this.innerHTML = '<i class="fas fa-volume-up"></i> Suara';
+                        } else {
+                            music.pause();
+                            this.innerHTML = '<i class="fas fa-volume-mute"></i> Suara';
+                        }
+                    }
+                });
+            } else if (clonedBtn.id === 'menuBtn') {
+                clonedBtn.addEventListener('click', function() {
+                    exitFullscreen();
+                });
+            }
+            
+            inGameControls.appendChild(clonedBtn);
+        });
+        
+        // Tambahkan tombol keluar fullscreen
+        const exitBtn = document.createElement('button');
+        exitBtn.className = 'btn btn-fullscreen';
+        exitBtn.innerHTML = '<i class="fas fa-compress"></i> Keluar';
+        exitBtn.style.cssText = `
+            min-width: 100px;
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #f44336, #D32F2F);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        `;
+        exitBtn.addEventListener('click', exitFullscreen);
+        inGameControls.appendChild(exitBtn);
+        
+        // Tambahkan ke body
+        document.body.appendChild(inGameControls);
+        
+        // Sembunyikan tombol asli
+        gameControls.style.display = 'none';
+    }
+}
+
+// Fungsi untuk keluar fullscreen
+function exitFullscreen() {
+    if (document.exitFullscreen) {
+        document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+    }
+    
+    isFullscreenMode = false;
+    
+    // Kembalikan elemen yang disembunyikan
+    const elementsToShow = [
+        '.instructions',
+        '.level-selector',
+        'footer',
+        '.booster-display',
+        '.container > header'
+    ];
+    
+    elementsToShow.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            el.style.display = '';
+        });
+    });
+    
+    // Kembalikan tampilan container game
+    const gameContainer = document.querySelector('.game-container');
+    if (gameContainer) {
+        gameContainer.style.width = '';
+        gameContainer.style.height = '';
+        gameContainer.style.margin = '';
+        gameContainer.style.padding = '';
+        gameContainer.style.borderRadius = '';
+        gameContainer.style.border = '';
+        gameContainer.style.background = '';
+    }
+    
+    // Hapus tombol fullscreen
+    const fullscreenControls = document.querySelector('.fullscreen-game-controls');
+    if (fullscreenControls) {
+        fullscreenControls.remove();
+    }
+    
+    // Tampilkan kembali tombol asli
+    const gameControls = document.querySelector('.game-controls');
+    if (gameControls) {
+        gameControls.style.display = '';
+    }
+    
+    // Kembalikan ke menu utama
+    if (window.returnToMainMenu) {
+        returnToMainMenu();
+    }
+}
+
+// Event listener untuk perubahan fullscreen
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+function handleFullscreenChange() {
+    const isFullscreen = document.fullscreenElement || 
+                        document.webkitFullscreenElement || 
+                        document.mozFullScreenElement || 
+                        document.msFullscreenElement;
+    
+    if (!isFullscreen && isFullscreenMode) {
+        // Jika keluar fullscreen, reset state
+        exitFullscreen();
+    }
+}
+
+// =============================================
+// INISIALISASI TOMBOL MULAI GAME
+// =============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup tombol mulai game
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn) {
+        startBtn.addEventListener('click', function() {
+            console.log("🎮 Tombol 'Mulai Game (Fullscreen)' diklik");
+            startGameFullscreen();
+        });
+    }
+    
+    // Setup mobile controls untuk fullscreen
+    setupFullscreenMobileControls();
+});
+
+// Setup mobile controls di fullscreen
+function setupFullscreenMobileControls() {
+    const mobileControls = document.querySelector('.mobile-controls');
+    if (mobileControls) {
+        // Mobile controls akan muncul otomatis di fullscreen
+        document.addEventListener('fullscreenchange', function() {
+            if (document.fullscreenElement) {
+                mobileControls.style.display = 'flex';
+                mobileControls.classList.add('fullscreen-visible');
+            } else {
+                mobileControls.style.display = 'none';
+                mobileControls.classList.remove('fullscreen-visible');
+            }
+        });
+    }
+}
     </script>
 </body>
 </html>

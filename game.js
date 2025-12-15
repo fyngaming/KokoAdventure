@@ -63,6 +63,9 @@ document.addEventListener('DOMContentLoaded', function() {
         progressBarWidth: 0,
         progressBarTargetWidth: 300
     };
+    // ========== FULLSCREEN GAME STATE ==========
+    let fullscreenGameActive = false;
+    let originalGameState = null;
 
     // ========== DEBUG VARIABLES ==========
     let showDebugInfo = false;
@@ -1365,6 +1368,137 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
+
+
+    // ========== FULLSCREEN GAME FUNCTIONS ==========
+function initializeFullscreenGame() {
+    console.log("🎮 Menginisialisasi game fullscreen...");
+    
+    // Simpan state asli
+    originalGameState = {
+        running: gameState.running,
+        paused: gameState.paused,
+        gameStarted: gameState.gameStarted
+    };
+    
+    // Set game untuk fullscreen mode
+    fullscreenGameActive = true;
+    
+    // Setup controls untuk fullscreen
+    setupFullscreenControls();
+    
+    // Pastikan mobile controls terlihat
+    const mobileControls = document.querySelector('.mobile-controls');
+    if (mobileControls) {
+        mobileControls.style.display = 'flex';
+        mobileControls.classList.add('fullscreen-visible');
+    }
+    
+    console.log("✅ Game fullscreen siap!");
+}
+
+function exitFullscreenGame() {
+    console.log("🚪 Keluar dari game fullscreen...");
+    
+    fullscreenGameActive = false;
+    
+    // Restore original state jika ada
+    if (originalGameState) {
+        gameState.running = originalGameState.running;
+        gameState.paused = originalGameState.paused;
+        gameState.gameStarted = originalGameState.gameStarted;
+    }
+    
+    // Sembunyikan mobile controls
+    const mobileControls = document.querySelector('.mobile-controls');
+    if (mobileControls) {
+        if (window.innerWidth >= 769) {
+            mobileControls.style.display = 'none';
+        }
+        mobileControls.classList.remove('fullscreen-visible');
+    }
+    
+    console.log("✅ Kembali ke mode normal");
+}
+
+function setupFullscreenControls() {
+    console.log("🔧 Setup kontrol untuk fullscreen...");
+    
+    // Setup keyboard controls untuk WASD
+    document.addEventListener('keydown', function(e) {
+        if (!fullscreenGameActive) return;
+        
+        // WASD Controls
+        if (e.key === 'w' || e.key === 'W') {
+            keys['ArrowUp'] = true;
+            keys[' '] = true;
+            keys['x'] = true;
+            keys['X'] = true;
+            player.jumpRequested = true;
+            player.jumpBuffer = player.jumpBufferTime;
+            e.preventDefault();
+        }
+        if (e.key === 'a' || e.key === 'A') {
+            keys['ArrowLeft'] = true;
+            keys['a'] = true;
+            keys['A'] = true;
+            player.facingRight = false;
+            e.preventDefault();
+        }
+        if (e.key === 's' || e.key === 'S') {
+            keys['ArrowDown'] = true;
+            e.preventDefault();
+        }
+        if (e.key === 'd' || e.key === 'D') {
+            keys['ArrowRight'] = true;
+            keys['d'] = true;
+            keys['D'] = true;
+            player.facingRight = true;
+            e.preventDefault();
+        }
+        
+        // Attack dengan 'z' atau 'Z'
+        if (e.key === 'z' || e.key === 'Z') {
+            if (player.hasBoomerang) {
+                throwBoomerang();
+            } else {
+                performMeleeAttack();
+            }
+            e.preventDefault();
+        }
+        
+        // Jump booster dengan 'b' atau 'B'
+        if (e.key === 'b' || e.key === 'B') {
+            player.useJumpBooster();
+            e.preventDefault();
+        }
+    });
+    
+    document.addEventListener('keyup', function(e) {
+        if (!fullscreenGameActive) return;
+        
+        if (e.key === 'w' || e.key === 'W') {
+            keys['ArrowUp'] = false;
+            keys[' '] = false;
+            keys['x'] = false;
+            keys['X'] = false;
+            player.jumpRequested = false;
+        }
+        if (e.key === 'a' || e.key === 'A') {
+            keys['ArrowLeft'] = false;
+            keys['a'] = false;
+            keys['A'] = false;
+        }
+        if (e.key === 's' || e.key === 'S') {
+            keys['ArrowDown'] = false;
+        }
+        if (e.key === 'd' || e.key === 'D') {
+            keys['ArrowRight'] = false;
+            keys['d'] = false;
+            keys['D'] = false;
+        }
+    });
+}
     
     // ========== INITIALIZE GAME ==========
     function init() {
@@ -3628,31 +3762,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function toggleFullscreen() {
-        const gameContainer = document.getElementById('gameContainer');
-        if (!gameContainer) return;
-        
-        if (!document.fullscreenElement) {
-            if (gameContainer.requestFullscreen) {
-                gameContainer.requestFullscreen();
-            } else if (gameContainer.webkitRequestFullscreen) {
-                gameContainer.webkitRequestFullscreen();
-            } else if (gameContainer.msRequestFullscreen) {
-                gameContainer.msRequestFullscreen();
-            }
-            gameState.isFullscreen = true;
-            console.log("🖥️ Entered fullscreen mode");
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
-            }
-            gameState.isFullscreen = false;
-            console.log("📱 Exited fullscreen mode");
-        }
-    }
+    // Fungsi ini tidak digunakan lagi karena tombol fullscreen dihapus
+    console.log("⚠️ Tombol fullscreen dihapus, gunakan tombol 'Mulai Game'");
+}
     
     function handleFullscreenChange() {
         const isFullscreen = document.fullscreenElement || 
@@ -3732,35 +3844,40 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ========== GAME CONTROLS ==========
     function startGame() {
-        console.log("🚀 ===== START GAME FUNCTION CALLED =====");
-        
-        gameState.running = true;
-        gameState.gameStarted = true;
-        gameState.gameOver = false;
-        gameState.win = false;
-        gameState.paused = false;
-        gameState.showLevelTransition = false;
-        gameState.lastTime = performance.now();
-        
-        const startBtn = document.getElementById('startBtn');
-        const pauseBtn = document.getElementById('pauseBtn');
-        
-        if (startBtn) {
-            startBtn.innerHTML = '<i class="fas fa-redo"></i> Ulangi';
-            console.log("🔄 Start button updated to 'Ulangi'");
-        }
-        
-        if (pauseBtn) {
-            pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Jeda';
-            pauseBtn.disabled = false;
-            console.log("⏸️ Pause button enabled");
-        }
-        
-        hideNextLevelButton();
-        updateGameStats();
-        
-        console.log("✅ Game successfully started!");
+    console.log("🚀 ===== START GAME FUNCTION CALLED =====");
+    
+    gameState.running = true;
+    gameState.gameStarted = true;
+    gameState.gameOver = false;
+    gameState.win = false;
+    gameState.paused = false;
+    gameState.showLevelTransition = false;
+    gameState.lastTime = performance.now();
+    
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    
+    if (startBtn) {
+        startBtn.innerHTML = '<i class="fas fa-redo"></i> Ulangi';
+        console.log("🔄 Start button updated to 'Ulangi'");
     }
+    
+    if (pauseBtn) {
+        pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Jeda';
+        pauseBtn.disabled = false;
+        console.log("⏸️ Pause button enabled");
+    }
+    
+    // Jika dalam mode fullscreen, inisialisasi kontrol
+    if (fullscreenGameActive) {
+        initializeFullscreenGame();
+    }
+    
+    hideNextLevelButton();
+    updateGameStats();
+    
+    console.log("✅ Game successfully started!");
+}
     
     function resumeGame() {
         console.log("▶️ Resuming game...");
