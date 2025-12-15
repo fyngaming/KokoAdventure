@@ -2,12 +2,18 @@
 // KOKO ADVENTURE v4.0 - 10 LEVEL COMPLETE
 // Sistem Damage Lengkap dengan Elemental & Armor Types
 // + JUMP BOOSTER SYSTEM (3 charges per hidup, reset saat mati)
+// + AUTO LEVEL PROGRESSION
+// + FULLSCREEN CONTROLS FIX
+// + ANIMATED LEVEL TRANSITION DENGAN TOMBOL LANJUT
 // =============================================
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("🎮 Koko Adventure v4.0 - Sistem Damage Komprehensif!");
     console.log("✨ FITUR: Elemental Damage, Armor Types, Combo System");
     console.log("🚀 JUMP BOOSTER: 3 charges per hidup, reset saat respawn");
+    console.log("➡️ AUTO PROGRESS: Otomatis ke level berikutnya setelah menang");
+    console.log("🖥️ FULLSCREEN: Kontrol hanya di dalam layar penuh");
+    console.log("🎬 ANIMATED TRANSITION: Transisi level dengan tombol lanjut");
     
     // ========== GET CANVAS & CONTEXT ==========
     const canvas = document.getElementById('gameCanvas');
@@ -47,13 +53,21 @@ document.addEventListener('DOMContentLoaded', function() {
             width: canvas.width,
             height: canvas.height,
             followSpeed: 0.08
-        }
+        },
+        autoProgress: false, // Ubah ke false untuk menggunakan tombol manual
+        showLevelTransition: false,
+        transitionTimer: 0,
+        transitionMessage: "",
+        isFullscreen: false,
+        countdownValue: 3,
+        progressBarWidth: 0,
+        progressBarTargetWidth: 300
     };
 
     // ========== DEBUG VARIABLES ==========
     let showDebugInfo = false;
     
-    // ========== PLAYER OBJECT DENGAN JUMP BOOSTER SYSTEM YANG DIPERBAIKI ==========
+    // ========== PLAYER OBJECT ==========
     const player = {
         x: 50,
         y: canvas.height - 100,
@@ -63,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
         velocityY: 0,
         speed: 180,
         jumpPower: 550,
-        originalJumpPower: 550, // Simpan nilai original
+        originalJumpPower: 550,
         jumpSpeedBoost: 1.8,
         isJumping: false,
         facingRight: true,
@@ -73,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
         invincible: false,
         invincibleTimer: 0,
         
-        // ===== SISTEM LOMPATAN =====
+        // ===== JUMP SYSTEM =====
         canDoubleJump: true,
         doubleJumpUsed: false,
         maxDoubleJumps: 1,
@@ -84,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         coyoteTimeMax: 0.1,
         jumpRequested: false,
         
-        // ===== FISIKA =====
+        // ===== PHYSICS =====
         gravity: 900,
         maxFallSpeed: 600,
         groundFriction: 0.85,
@@ -96,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
         onGround: false,
         justLanded: false,
         
-        // ===== JUMP BOOSTER SYSTEM YANG DIPERBAIKI =====
+        // ===== JUMP BOOSTER SYSTEM =====
         hasJumpBooster: false,
         jumpBoosterActive: false,
         jumpBoosterTimer: 0,
@@ -105,44 +119,37 @@ document.addEventListener('DOMContentLoaded', function() {
         jumpBoosterCharges: 3,
         jumpBoosterMaxCharges: 3,
         jumpBoosterMultiplier: 2.0,
-        jumpBoosterChargesThisLife: 3, // Menyimpan charges untuk sesi hidup ini
+        jumpBoosterChargesThisLife: 3,
         
         // Method untuk menggunakan jump booster
         useJumpBooster: function() {
-            // Cek apakah masih ada charge untuk sesi hidup ini
             if (this.jumpBoosterChargesThisLife <= 0) {
                 console.log("🚀 No jump booster charges left for this life!");
                 showJumpBoosterNotification("No boosters left for this life!", true);
                 return false;
             }
             
-            // Cek apakah sudah aktif
             if (this.jumpBoosterActive) {
                 console.log("🚀 Jump booster already active!");
                 return false;
             }
             
-            // Aktifkan booster
             this.jumpBoosterActive = true;
             this.jumpBoosterTimer = this.jumpBoosterDuration;
             this.jumpBoosterChargesThisLife--;
-            this.jumpBoosterCharges = this.jumpBoosterChargesThisLife; // Sync dengan display
+            this.jumpBoosterCharges = this.jumpBoosterChargesThisLife;
             
-            // Simpan original jump power
             if (!this.originalJumpPower) {
                 this.originalJumpPower = this.jumpPower;
             }
             
-            // Terapkan efek booster ke jump power
             this.jumpPower = this.jumpBoosterPower;
             this.hasJumpBooster = true;
             
             console.log(`🚀 JUMP BOOSTER ACTIVATED! Charges left this life: ${this.jumpBoosterChargesThisLife}, Duration: ${this.jumpBoosterDuration}s`);
             
-            // Update UI
             updateGameStats();
             
-            // Reset jump power setelah durasi
             const booster = this;
             setTimeout(() => {
                 if (booster.jumpBoosterActive) {
@@ -156,11 +163,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return true;
         },
         
-        // Method untuk reset booster saat mati
         resetJumpBoosterForNewLife: function() {
-            // Reset untuk sesi hidup baru
             this.jumpBoosterChargesThisLife = this.jumpBoosterMaxCharges;
-            this.jumpBoosterCharges = this.jumpBoosterChargesThisLife; // Sync dengan display
+            this.jumpBoosterCharges = this.jumpBoosterChargesThisLife;
             this.jumpBoosterActive = false;
             this.jumpBoosterTimer = 0;
             this.jumpPower = this.originalJumpPower;
@@ -168,9 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`🚀 Jump booster reset for new life! Charges: ${this.jumpBoosterChargesThisLife}/${this.jumpBoosterMaxCharges}`);
         },
         
-        // Method untuk reset booster saat game over
         resetJumpBoosterForGameOver: function() {
-            // Reset lengkap untuk game baru
             this.jumpBoosterChargesThisLife = this.jumpBoosterMaxCharges;
             this.jumpBoosterCharges = this.jumpBoosterMaxCharges;
             this.jumpBoosterActive = false;
@@ -180,7 +183,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`🚀 Jump booster reset for game over! Charges: ${this.jumpBoosterCharges}`);
         },
         
-        // Method untuk update booster timer
         updateJumpBooster: function(deltaTime) {
             if (this.jumpBoosterActive) {
                 this.jumpBoosterTimer -= deltaTime;
@@ -193,14 +195,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
         
-        // Method untuk recharge booster (hanya untuk power-up)
         rechargeJumpBooster: function(amount = 1) {
             const oldCharges = this.jumpBoosterChargesThisLife;
             this.jumpBoosterChargesThisLife = Math.min(
                 this.jumpBoosterChargesThisLife + amount, 
                 this.jumpBoosterMaxCharges
             );
-            this.jumpBoosterCharges = this.jumpBoosterChargesThisLife; // Sync dengan display
+            this.jumpBoosterCharges = this.jumpBoosterChargesThisLife;
             
             if (this.jumpBoosterChargesThisLife > oldCharges) {
                 console.log(`🚀 Jump booster recharged! Charges this life: ${this.jumpBoosterChargesThisLife}/${this.jumpBoosterMaxCharges}`);
@@ -212,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // ===== DAMAGE COOLDOWN =====
         lastPlatformDamage: 0,
         
-        // ===== SISTEM SERANGAN =====
+        // ===== ATTACK SYSTEM =====
         attackCooldown: 0,
         attackCooldownTime: 0.3,
         canAttack: true,
@@ -223,7 +224,6 @@ document.addEventListener('DOMContentLoaded', function() {
         attackDuration: 0.2,
         attackTimer: 0,
         
-        // ===== ATTACK TYPES & ELEMENTS =====
         attackTypes: {
             basic: {
                 damage: 1,
@@ -567,6 +567,682 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // ========== LEVEL TRANSITION SYSTEM DENGAN TOMBOL ==========
+    function showLevelTransition(message) {
+        gameState.showLevelTransition = true;
+        gameState.transitionTimer = 4;
+        gameState.transitionMessage = message;
+        gameState.running = false;
+        gameState.paused = true;
+        
+        console.log(`🎬 Level Transition: ${message}`);
+        
+        gameState.progressBarWidth = 0;
+        gameState.progressBarTargetWidth = 300;
+        gameState.countdownValue = 3;
+    }
+    
+    function updateLevelTransition(deltaTime) {
+        if (gameState.showLevelTransition) {
+            // Tidak perlu update timer karena menggunakan tombol manual
+            // Hanya update jika auto-progress ON (tapi kita ingin tombol manual)
+            if (gameState.autoProgress) {
+                gameState.transitionTimer -= deltaTime;
+                
+                const newCountdownValue = Math.ceil(gameState.transitionTimer - 1);
+                if (newCountdownValue !== gameState.countdownValue && newCountdownValue >= 0) {
+                    gameState.countdownValue = newCountdownValue;
+                    console.log(`⏱️ Countdown: ${gameState.countdownValue}`);
+                }
+                
+                if (gameState.countdownValue > 0) {
+                    const progress = (3 - gameState.countdownValue) / 3;
+                    gameState.progressBarWidth = 300 * progress;
+                } else {
+                    gameState.progressBarWidth = 300;
+                    
+                    if (gameState.autoProgress) {
+                        if (gameState.currentLevel < gameState.maxLevel) {
+                            autoProgressToNextLevel();
+                        } else {
+                            showGameCompleteScreen();
+                        }
+                        gameState.showLevelTransition = false;
+                    }
+                }
+                
+                if (gameState.transitionTimer <= 0) {
+                    gameState.showLevelTransition = false;
+                    gameState.progressBarWidth = 0;
+                    gameState.countdownValue = 3;
+                }
+            }
+        }
+    }
+    
+    function drawLevelTransition() {
+        if (!gameState.showLevelTransition) return;
+        
+        ctx.save();
+        
+        // Overlay gradient
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, 'rgba(26, 71, 42, 0.95)');
+        gradient.addColorStop(1, 'rgba(42, 98, 61, 0.95)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Container utama
+        const containerWidth = 500;
+        const containerHeight = 350;
+        const containerX = canvas.width / 2 - containerWidth / 2;
+        const containerY = canvas.height / 2 - containerHeight / 2;
+        
+        // Background container
+        ctx.fillStyle = 'rgba(76, 175, 80, 0.1)';
+        ctx.strokeStyle = 'rgba(76, 175, 80, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(containerX, containerY, containerWidth, containerHeight, 20);
+        } else {
+            ctx.rect(containerX, containerY, containerWidth, containerHeight);
+        }
+        ctx.fill();
+        ctx.stroke();
+        
+        // Efek glow
+        ctx.shadowColor = '#4CAF50';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = 'rgba(76, 175, 80, 0.05)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(containerX - 10, containerY - 10, containerWidth + 20, containerHeight + 20, 25);
+        } else {
+            ctx.rect(containerX - 10, containerY - 10, containerWidth + 20, containerHeight + 20);
+        }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        
+        // ===== TITLE =====
+        // Ikon trophy
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 50px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🏆', canvas.width / 2, containerY + 80);
+        
+        // Title utama
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 36px Arial';
+        ctx.fillText('LEVEL SELESAI!', canvas.width / 2, containerY + 130);
+        
+        // ===== LEVEL INFO =====
+        // Level yang selesai
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 28px Arial';
+        ctx.fillText(`Level ${gameState.currentLevel} Telah Diselesaikan!`, canvas.width / 2, containerY + 180);
+        
+        // Informasi level berikutnya
+        if (gameState.currentLevel < gameState.maxLevel) {
+            ctx.fillStyle = '#00FFFF';
+            ctx.font = '24px Arial';
+            ctx.fillText(`Siap melanjutkan ke Level ${gameState.currentLevel + 1}`, canvas.width / 2, containerY + 220);
+        } else {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = '24px Arial';
+            ctx.fillText('🎮 SEMUA LEVEL TELAH DISELESAIKAN!', canvas.width / 2, containerY + 220);
+        }
+        
+        // ===== TOMBOL LANJUT =====
+        // Tombol "Lanjutkan ke Level Berikutnya"
+        const buttonWidth = 300;
+        const buttonHeight = 50;
+        const buttonX = canvas.width / 2 - buttonWidth / 2;
+        const buttonY = containerY + 270;
+        
+        // Background tombol
+        const buttonGradient = ctx.createLinearGradient(buttonX, buttonY, buttonX, buttonY + buttonHeight);
+        buttonGradient.addColorStop(0, '#4CAF50');
+        buttonGradient.addColorStop(1, '#2E7D32');
+        
+        ctx.fillStyle = buttonGradient;
+        if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(buttonX, buttonY, buttonWidth, buttonHeight, 10);
+            ctx.fill();
+        } else {
+            ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+        }
+        
+        // Border tombol
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(buttonX, buttonY, buttonWidth, buttonHeight, 10);
+            ctx.stroke();
+        } else {
+            ctx.strokeRect(buttonX, buttonY, buttonWidth, buttonHeight);
+        }
+        
+        // Efek hover (animasi)
+        const time = Date.now() / 1000;
+        const glow = Math.sin(time * 3) * 0.2 + 0.8;
+        ctx.shadowColor = '#00FF00';
+        ctx.shadowBlur = 10 * glow;
+        
+        // Border glow
+        if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(buttonX - 2, buttonY - 2, buttonWidth + 4, buttonHeight + 4, 12);
+            ctx.stroke();
+        } else {
+            ctx.strokeRect(buttonX - 2, buttonY - 2, buttonWidth + 4, buttonHeight + 4);
+        }
+        ctx.shadowBlur = 0;
+        
+        // Teks tombol
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 22px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        if (gameState.currentLevel < gameState.maxLevel) {
+            ctx.fillText(`Lanjutkan ke Level ${gameState.currentLevel + 1}`, canvas.width / 2, buttonY + buttonHeight / 2);
+        } else {
+            ctx.fillText('Tampilkan Hasil Akhir', canvas.width / 2, buttonY + buttonHeight / 2);
+        }
+        
+        // ===== JUMP BOOSTER INFO =====
+        ctx.fillStyle = '#00FFFF';
+        ctx.font = '16px Arial';
+        ctx.fillText(`Jump Booster: ${player.jumpBoosterChargesThisLife} charges dibawa ke level berikutnya`, canvas.width / 2, buttonY + buttonHeight + 30);
+        
+        // ===== PETUNJUK KLIK =====
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = '14px Arial';
+        ctx.fillText('Klik tombol di atas untuk melanjutkan', canvas.width / 2, buttonY + buttonHeight + 60);
+        
+        ctx.restore();
+    }
+    
+    // ========== GAME COMPLETE SCREEN ==========
+    function showGameCompleteScreen() {
+        gameState.running = false;
+        gameState.paused = true;
+        gameState.win = true;
+        
+        // Buat confetti effect
+        createConfettiEffect();
+        
+        // Tampilkan screen akhir
+        setTimeout(() => {
+            drawGameCompleteScreen();
+        }, 100);
+    }
+
+    function drawGameCompleteScreen() {
+        ctx.save();
+        
+        // Overlay gradient
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, 'rgba(0, 0, 50, 0.95)');
+        gradient.addColorStop(1, 'rgba(0, 50, 100, 0.95)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Container utama
+        const containerWidth = 600;
+        const containerHeight = 400;
+        const containerX = canvas.width / 2 - containerWidth / 2;
+        const containerY = canvas.height / 2 - containerHeight / 2;
+        
+        // Background container
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.1)';
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(containerX, containerY, containerWidth, containerHeight, 20);
+        } else {
+            ctx.rect(containerX, containerY, containerWidth, containerHeight);
+        }
+        ctx.fill();
+        ctx.stroke();
+        
+        // ===== JUDUL UTAMA =====
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🎉 SELAMAT! 🎉', canvas.width / 2, containerY + 80);
+        
+        // ===== SUB JUDUL =====
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 30px Arial';
+        ctx.fillText('Anda telah menyelesaikan', canvas.width / 2, containerY + 130);
+        ctx.fillText('semua 10 level!', canvas.width / 2, containerY + 170);
+        
+        // ===== STATISTIK =====
+        ctx.fillStyle = '#00FFFF';
+        ctx.font = '24px Arial';
+        ctx.fillText(`Skor Akhir: ${gameState.score}`, canvas.width / 2, containerY + 220);
+        
+        // ===== TOMBOL =====
+        // Tombol "Main Lagi"
+        const buttonWidth = 250;
+        const buttonHeight = 50;
+        const buttonX = canvas.width / 2 - buttonWidth - 20;
+        const buttonY = containerY + 280;
+        
+        // Background tombol Main Lagi
+        const buttonGradient1 = ctx.createLinearGradient(buttonX, buttonY, buttonX, buttonY + buttonHeight);
+        buttonGradient1.addColorStop(0, '#4CAF50');
+        buttonGradient1.addColorStop(1, '#2E7D32');
+        
+        ctx.fillStyle = buttonGradient1;
+        if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(buttonX, buttonY, buttonWidth, buttonHeight, 10);
+            ctx.fill();
+        } else {
+            ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+        }
+        
+        // Teks tombol Main Lagi
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 22px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Main Lagi', buttonX + buttonWidth/2, buttonY + buttonHeight/2);
+        
+        // Tombol "Menu Utama"
+        const buttonX2 = canvas.width / 2 + 20;
+        
+        // Background tombol Menu Utama
+        const buttonGradient2 = ctx.createLinearGradient(buttonX2, buttonY, buttonX2, buttonY + buttonHeight);
+        buttonGradient2.addColorStop(0, '#2196F3');
+        buttonGradient2.addColorStop(1, '#1976D2');
+        
+        ctx.fillStyle = buttonGradient2;
+        if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(buttonX2, buttonY, buttonWidth, buttonHeight, 10);
+            ctx.fill();
+        } else {
+            ctx.fillRect(buttonX2, buttonY, buttonWidth, buttonHeight);
+        }
+        
+        // Teks tombol Menu Utama
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText('Menu Utama', buttonX2 + buttonWidth/2, buttonY + buttonHeight/2);
+        
+        // ===== PETUNJUK KLIK =====
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = '14px Arial';
+        ctx.fillText('Klik tombol untuk memilih aksi', canvas.width / 2, buttonY + buttonHeight + 30);
+        
+        ctx.restore();
+    }
+
+    function createConfettiEffect() {
+        // Hapus confetti yang ada
+        const existingConfetti = document.querySelectorAll('.confetti');
+        existingConfetti.forEach(confetti => confetti.remove());
+        
+        // Buat confetti baru
+        for (let i = 0; i < 100; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.cssText = `
+                position: fixed;
+                width: ${10 + Math.random() * 10}px;
+                height: ${10 + Math.random() * 10}px;
+                background: ${['#FFD700', '#4CAF50', '#2196F3', '#FF5252', '#9C27B0'][Math.floor(Math.random() * 5)]};
+                top: -50px;
+                left: ${Math.random() * 100}vw;
+                border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+                z-index: 10001;
+                pointer-events: none;
+                animation: confettiFall ${2 + Math.random() * 2}s linear forwards;
+            `;
+            document.body.appendChild(confetti);
+            
+            // Hapus setelah animasi selesai
+            setTimeout(() => confetti.remove(), 4000);
+        }
+    }
+
+    function showGameCompletePopup() {
+        // Total score calculation
+        const totalScore = gameState.score;
+        const levelsCompleted = gameState.maxLevel;
+        const averageScore = Math.floor(totalScore / levelsCompleted);
+        
+        // Rating bintang berdasarkan skor
+        let stars = 0;
+        if (totalScore > 20000) stars = 5;
+        else if (totalScore > 15000) stars = 4;
+        else if (totalScore > 10000) stars = 3;
+        else if (totalScore > 5000) stars = 2;
+        else stars = 1;
+        
+        // Buat popup game complete
+        let popup = document.querySelector('.game-complete-popup');
+        let overlay = document.querySelector('.overlay');
+        
+        if (!popup) {
+            overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            document.body.appendChild(overlay);
+            
+            popup = document.createElement('div');
+            popup.className = 'game-complete-popup';
+            document.body.appendChild(popup);
+        }
+        
+        popup.innerHTML = `
+            <h1><i class="fas fa-crown"></i> SELAMAT!</h1>
+            <h2>Anda telah menyelesaikan semua 10 level!</h2>
+            
+            <div class="star-rating">
+                ${'<i class="fas fa-star"></i>'.repeat(stars)}
+            </div>
+            
+            <div class="final-stats">
+                <div>Total Skor: <span>${totalScore}</span></div>
+                <div>Level Diselesaikan: <span>10/10</span></div>
+                <div>Rata-rata Skor per Level: <span>${averageScore}</span></div>
+                <div>Jump Booster Tersisa: <span>${player.jumpBoosterChargesThisLife}</span></div>
+            </div>
+            
+            <div class="popup-buttons">
+                <button id="playAgainBtn" class="popup-btn play-again">
+                    <i class="fas fa-redo"></i> Main Lagi
+                </button>
+                <button id="mainMenuBtn" class="popup-btn main-menu">
+                    <i class="fas fa-home"></i> Menu Utama
+                </button>
+            </div>
+        `;
+        
+        // Tambahkan styles inline untuk popup
+        popup.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10002;
+            background: linear-gradient(135deg, #1a472a, #2a623d);
+            padding: 40px;
+            border-radius: 25px;
+            border: 5px solid #FFD700;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.7);
+            min-width: 500px;
+            max-width: 600px;
+            text-align: center;
+            animation: popupScale 0.5s ease-out;
+        `;
+        
+        popup.querySelector('h1').style.cssText = `
+            color: #FFD700;
+            margin-bottom: 20px;
+            font-size: 2.8rem;
+            animation: celebrate 2s infinite;
+        `;
+        
+        popup.querySelector('h2').style.cssText = `
+            color: #FFFFFF;
+            margin-bottom: 30px;
+            font-size: 1.8rem;
+        `;
+        
+        popup.querySelector('.final-stats').style.cssText = `
+            background: rgba(30, 58, 42, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 25px 0;
+            border: 2px solid #4CAF50;
+            text-align: left;
+        `;
+        
+        popup.querySelectorAll('.final-stats div').forEach(div => {
+            div.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                margin: 15px 0;
+                color: #a5d6a7;
+                font-size: 1.2rem;
+                padding: 8px 0;
+                border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+            `;
+            
+            const span = div.querySelector('span');
+            if (span) {
+                span.style.cssText = `
+                    color: white;
+                    font-weight: bold;
+                    font-size: 1.3rem;
+                `;
+            }
+        });
+        
+        popup.querySelector('.star-rating').style.cssText = `
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        `;
+        
+        popup.querySelectorAll('.star-rating i').forEach(star => {
+            star.style.cssText = `
+                color: #FFD700;
+                font-size: 2.5rem;
+                animation: starTwinkle 1.5s infinite;
+            `;
+        });
+        
+        popup.querySelector('.popup-buttons').style.cssText = `
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        `;
+        
+        const playAgainBtn = popup.querySelector('#playAgainBtn');
+        const mainMenuBtn = popup.querySelector('#mainMenuBtn');
+        
+        if (playAgainBtn) {
+            playAgainBtn.style.cssText = `
+                padding: 18px 35px;
+                background: linear-gradient(135deg, #4CAF50, #2E7D32);
+                color: white;
+                border: none;
+                border-radius: 50px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 1.3rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                min-width: 200px;
+                box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+                transition: all 0.3s;
+            `;
+            
+            playAgainBtn.addEventListener('click', function() {
+                overlay.classList.remove('show');
+                popup.classList.remove('show');
+                
+                // Reset game untuk dimainkan lagi dari awal
+                gameState.currentLevel = 1;
+                gameState.score = 0;
+                gameState.lives = 5;
+                gameState.unlockedLevel = 1;
+                
+                player.resetJumpBoosterForGameOver();
+                
+                setupLevel(1);
+                startGame();
+                
+                // Hapus confetti
+                document.querySelectorAll('.confetti').forEach(c => c.remove());
+            });
+        }
+        
+        if (mainMenuBtn) {
+            mainMenuBtn.style.cssText = `
+                padding: 18px 35px;
+                background: linear-gradient(135deg, #2196F3, #1976D2);
+                color: white;
+                border: none;
+                border-radius: 50px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 1.3rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                min-width: 200px;
+                box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+                transition: all 0.3s;
+            `;
+            
+            mainMenuBtn.addEventListener('click', function() {
+                overlay.classList.remove('show');
+                popup.classList.remove('show');
+                
+                returnToMainMenu();
+                
+                // Hapus confetti
+                document.querySelectorAll('.confetti').forEach(c => c.remove());
+            });
+        }
+        
+        // Tampilkan overlay dan popup
+        overlay.classList.add('show');
+        popup.classList.add('show');
+    }
+    
+    // ========== MODIFIED AUTO PROGRESS TO NEXT LEVEL ==========
+    function autoProgressToNextLevel() {
+        if (gameState.currentLevel < gameState.maxLevel) {
+            console.log(`➡️ Auto-progress dari Level ${gameState.currentLevel} ke Level ${gameState.currentLevel + 1}`);
+            
+            const currentBoosterCharges = player.jumpBoosterChargesThisLife;
+            
+            gameState.currentLevel++;
+            
+            if (gameState.currentLevel > gameState.unlockedLevel) {
+                gameState.unlockedLevel = gameState.currentLevel;
+            }
+            
+            setupLevel(gameState.currentLevel);
+            
+            player.jumpBoosterChargesThisLife = currentBoosterCharges;
+            player.jumpBoosterCharges = currentBoosterCharges;
+            
+            console.log(`🚀 Jump booster charges dibawa ke Level ${gameState.currentLevel}: ${player.jumpBoosterChargesThisLife}`);
+            
+            // Update tombol level berikutnya
+            setupNextLevelButton();
+            
+            setTimeout(() => {
+                startGame();
+                showJumpBoosterNotification(`Level ${gameState.currentLevel} dimulai! (${player.jumpBoosterChargesThisLife} booster charges tersedia)`);
+                
+                createParticles(canvas.width / 2, canvas.height / 2, 50, '#4CAF50');
+                createParticles(canvas.width / 2, canvas.height / 2, 30, '#00FFFF');
+            }, 300);
+            
+            return true;
+        } else {
+            // Level 10 selesai
+            showGameCompleteScreen();
+            return false;
+        }
+    }
+    
+    // ========== FUNGSI TOMBOL LEVEL BERIKUTNYA ==========
+    function setupNextLevelButton() {
+        const nextLevelBtn = document.getElementById('nextLevelBtn');
+        if (nextLevelBtn) {
+            // Hapus event listener lama
+            nextLevelBtn.replaceWith(nextLevelBtn.cloneNode(true));
+            
+            const newNextLevelBtn = document.getElementById('nextLevelBtn');
+            
+            newNextLevelBtn.addEventListener('click', function() {
+                console.log(`➡️ Tombol "Level Berikutnya" diklik untuk level ${gameState.currentLevel + 1}`);
+                
+                // Simpan jump booster charges
+                const currentBoosterCharges = player.jumpBoosterChargesThisLife;
+                
+                // Pindah ke level berikutnya
+                if (gameState.currentLevel < gameState.maxLevel) {
+                    setupLevel(gameState.currentLevel + 1);
+                    
+                    // Kembalikan jump booster charges
+                    player.jumpBoosterChargesThisLife = currentBoosterCharges;
+                    player.jumpBoosterCharges = currentBoosterCharges;
+                    
+                    console.log(`🚀 Jump booster charges dibawa ke Level ${gameState.currentLevel}: ${player.jumpBoosterChargesThisLife}`);
+                    
+                    // Mulai game
+                    startGame();
+                    hideNextLevelButton();
+                    
+                    // Tampilkan notifikasi
+                    showJumpBoosterNotification(`Level ${gameState.currentLevel} dimulai! (${player.jumpBoosterChargesThisLife} booster charges)`);
+                } else {
+                    // Level 10 selesai, tampilkan screen akhir
+                    showGameCompleteScreen();
+                }
+            });
+            
+            // Update teks tombol
+            if (gameState.currentLevel < gameState.maxLevel) {
+                newNextLevelBtn.innerHTML = `<i class="fas fa-forward"></i> Lanjut ke Level ${gameState.currentLevel + 1}`;
+            } else {
+                newNextLevelBtn.innerHTML = `<i class="fas fa-crown"></i> Game Selesai`;
+                newNextLevelBtn.disabled = true;
+            }
+        }
+    }
+    
+    // ========== MODIFIED winLevel FUNCTION ==========
+    function winLevel() {
+        if (gameState.win) return;
+        
+        gameState.win = true;
+        gameState.running = false;
+        
+        const timeBonus = Math.floor(gameState.timeLeft * 10);
+        const livesBonus = gameState.lives * 100;
+        const levelBonus = gameState.currentLevel * 500;
+        
+        gameState.score += timeBonus + livesBonus + levelBonus;
+        
+        if (gameState.currentLevel < gameState.maxLevel) {
+            if (gameState.currentLevel + 1 > gameState.unlockedLevel) {
+                gameState.unlockedLevel = gameState.currentLevel + 1;
+            }
+        }
+        
+        // JUMP BOOSTER: TIDAK reset saat menang level
+        console.log(`🏆 Level ${gameState.currentLevel} completed! Jump booster charges carried over: ${player.jumpBoosterChargesThisLife}`);
+        
+        updateGameStats();
+        updateLevelButtons();
+        
+        // Tampilkan transisi dengan tombol "Lanjutkan ke Level Berikutnya"
+        showLevelTransition(`Level ${gameState.currentLevel} Selesai!`);
+    }
+    
     // ========== CHEAT FUNCTIONS ==========
     function skipToNextLevel() {
         if (gameState.currentLevel < gameState.maxLevel) {
@@ -614,7 +1290,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (success) {
             console.log(`🚀 CHEAT: Jump Booster Activated!`);
             
-            // Visual effect
             createParticles(player.x + player.width/2, player.y + player.height/2, 
                            30, '#00FFFF');
             createParticles(player.x + player.width/2, player.y + player.height/2, 
@@ -652,431 +1327,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // ========== ENEMY CREATION FUNCTIONS WITH DAMAGE SYSTEM ==========
-    function createRobot(level, speed, health, type) {
-        return {
-            x: 0, y: 0,
-            width: 40, height: 40,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'robot',
-            subtype: type,
-            health: health,
-            maxHealth: health,
-            attackRange: 150 + (level * 10),
-            attackCooldown: 0,
-            lastAttack: 0,
-            chasing: false,
-            patrolRange: 200,
-            color: type === 'toxic' ? '#32CD32' : 
-                   type === 'shooter' ? '#4169E1' : '#8B0000',
-            armorType: 'metal',
-            damageMultiplier: 1.0,
-            weakAgainst: 'electric',
-            resistantTo: 'physical',
-            baseDamage: 1,
-            attackType: 'melee',
-            experienceValue: 100
-        };
-    }
-    
-    function createSnake(level, speed, health, type) {
-        return {
-            x: 0, y: 0,
-            width: 40, height: 20,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'snake',
-            subtype: type,
-            health: health,
-            maxHealth: health,
-            attackRange: 100,
-            attackCooldown: 0,
-            lastAttack: 0,
-            chasing: false,
-            venomous: type === 'venom',
-            color: type === 'venom' ? '#006400' : '#228B22',
-            armorType: 'leather',
-            damageMultiplier: 1.2,
-            weakAgainst: 'fire',
-            resistantTo: 'poison',
-            baseDamage: type === 'venom' ? 2 : 1,
-            attackType: 'poison',
-            experienceValue: 80
-        };
-    }
-    
-    function createSpider(level, speed, health, type) {
-        return {
-            x: 0, y: 0,
-            width: 30, height: 30,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'spider',
-            subtype: type,
-            health: health,
-            maxHealth: health,
-            attackRange: 120,
-            attackCooldown: 0,
-            lastAttack: 0,
-            chasing: false,
-            webShooter: type === 'web',
-            color: type === 'web' ? '#4B0082' : '#8B0000',
-            armorType: 'exoskeleton',
-            damageMultiplier: 0.8,
-            weakAgainst: 'crush',
-            resistantTo: 'pierce',
-            baseDamage: 1,
-            webSlowEffect: type === 'web',
-            experienceValue: 90
-        };
-    }
-    
-    function createBat(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 30, height: 20,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'bat',
-            health: health,
-            maxHealth: health,
-            attackRange: 100,
-            attackCooldown: 0,
-            lastAttack: 0,
-            flying: true,
-            amplitude: 50 + (level * 5),
-            frequency: 2,
-            startY: 0,
-            color: '#4B0082',
-            armorType: 'flesh',
-            damageMultiplier: 1.5,
-            weakAgainst: 'fire',
-            resistantTo: 'none',
-            baseDamage: 1,
-            canDrainLife: true,
-            experienceValue: 60
-        };
-    }
-    
-    function createGhost(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 35, height: 50,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'ghost',
-            health: health,
-            maxHealth: health,
-            attackRange: 130,
-            attackCooldown: 0,
-            lastAttack: 0,
-            phaseThrough: true,
-            transparency: 0.7,
-            color: '#E6E6FA',
-            armorType: 'ethereal',
-            damageMultiplier: 0.5,
-            weakAgainst: 'holy',
-            resistantTo: 'physical',
-            baseDamage: 1,
-            canPassThroughWalls: true,
-            experienceValue: 120
-        };
-    }
-    
-    function createSlime(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 45, height: 30,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'slime',
-            health: health,
-            maxHealth: health,
-            attackRange: 80,
-            attackCooldown: 0,
-            lastAttack: 0,
-            splits: true,
-            jumpTimer: 0,
-            color: level >= 9 ? '#FF4500' : '#32CD32',
-            armorType: 'gel',
-            damageMultiplier: 0.7,
-            weakAgainst: 'ice',
-            resistantTo: 'poison',
-            baseDamage: level >= 9 ? 2 : 1,
-            canSplit: true,
-            splitHealth: Math.floor(health / 2),
-            experienceValue: 80
-        };
-    }
-    
-    function createEagle(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 50, height: 40,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'eagle',
-            health: health,
-            maxHealth: health,
-            attackRange: 200,
-            attackCooldown: 0,
-            lastAttack: 0,
-            flying: true,
-            diveAttack: true,
-            color: '#8B4513',
-            armorType: 'feather',
-            damageMultiplier: 1.3,
-            weakAgainst: 'pierce',
-            resistantTo: 'none',
-            baseDamage: 2,
-            diveDamage: 3,
-            experienceValue: 110
-        };
-    }
-    
-    function createYeti(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 60, height: 80,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'yeti',
-            health: health,
-            maxHealth: health,
-            attackRange: 120,
-            attackCooldown: 0,
-            lastAttack: 0,
-            throwSnowball: true,
-            color: '#F0F8FF',
-            armorType: 'fur',
-            damageMultiplier: 0.6,
-            weakAgainst: 'fire',
-            resistantTo: 'ice',
-            baseDamage: 2,
-            snowballSlowEffect: true,
-            experienceValue: 200
-        };
-    }
-    
-    function createWizard(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 35, height: 60,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'wizard',
-            health: health,
-            maxHealth: health,
-            attackRange: 250,
-            attackCooldown: 0,
-            lastAttack: 0,
-            spellCaster: true,
-            spellTypes: ['fire', 'ice', 'lightning'],
-            color: '#9370DB',
-            armorType: 'cloth',
-            damageMultiplier: 1.4,
-            weakAgainst: 'physical',
-            resistantTo: 'magic',
-            baseDamage: 1,
-            spellDamage: 2,
-            experienceValue: 150
-        };
-    }
-    
-    function createGolem(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 70, height: 90,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'golem',
-            health: health,
-            maxHealth: health,
-            attackRange: 100,
-            attackCooldown: 0,
-            lastAttack: 0,
-            throwsRocks: true,
-            color: '#696969',
-            armorType: 'stone',
-            damageMultiplier: 0.4,
-            weakAgainst: 'magic',
-            resistantTo: 'physical',
-            baseDamage: 3,
-            rockDamage: 2,
-            experienceValue: 180
-        };
-    }
-    
-    function createFairy(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 25, height: 25,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'fairy',
-            health: health,
-            maxHealth: health,
-            attackRange: 150,
-            attackCooldown: 0,
-            lastAttack: 0,
-            flying: true,
-            magicDust: true,
-            color: '#FF69B4',
-            armorType: 'magic',
-            damageMultiplier: 1.6,
-            weakAgainst: 'iron',
-            resistantTo: 'magic',
-            baseDamage: 1,
-            magicDustEffect: true,
-            experienceValue: 90
-        };
-    }
-    
-    function createDragon(level, speed, health, element) {
-        return {
-            x: 0, y: 0,
-            width: 80, height: 60,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'dragon',
-            element: element,
-            health: health,
-            maxHealth: health,
-            attackRange: 200,
-            attackCooldown: 0,
-            lastAttack: 0,
-            flying: true,
-            breathAttack: true,
-            color: element === 'fire' ? '#FF4500' : '#1E90FF',
-            armorType: 'scale',
-            damageMultiplier: 0.3,
-            weakAgainst: element === 'fire' ? 'ice' : 'fire',
-            resistantTo: element,
-            baseDamage: 3,
-            breathDamage: 4,
-            experienceValue: 250
-        };
-    }
-    
-    function createPhoenix(level, speed, health) {
-        return {
-            x: 0, y: 0,
-            width: 60, height: 50,
-            speed: speed,
-            direction: Math.random() > 0.5 ? 1 : -1,
-            type: 'phoenix',
-            health: health,
-            maxHealth: health,
-            attackRange: 180,
-            attackCooldown: 0,
-            lastAttack: 0,
-            flying: true,
-            rebirth: true,
-            color: '#FF8C00',
-            armorType: 'fire',
-            damageMultiplier: 0.8,
-            weakAgainst: 'ice',
-            resistantTo: 'fire',
-            baseDamage: 2,
-            rebirthHealth: Math.floor(health / 2),
-            experienceValue: 200
-        };
-    }
-    
-    function createBossDragon(level) {
-        return {
-            x: canvas.width / 2 - 100,
-            y: 100,
-            width: 150,
-            height: 120,
-            speed: 100,
-            direction: 1,
-            type: 'boss_dragon',
-            health: 50,
-            maxHealth: 50,
-            attackRange: 300,
-            attackCooldown: 0,
-            phase: 1,
-            attacks: ['fire_breath', 'wing_slam', 'tail_whip'],
-            color: '#8B0000',
-            isBoss: true,
-            armorType: 'dragon_scale',
-            damageMultiplier: 0.2,
-            weakAgainst: 'ice',
-            resistantTo: ['fire', 'physical'],
-            baseDamage: 5,
-            phaseDamage: [3, 4, 5],
-            elementalWeakness: 'ice',
-            experienceValue: 1000
-        };
-    }
-    
-    function createBossRobot(level) {
-        return {
-            x: canvas.width / 2 - 75,
-            y: canvas.height - 200,
-            width: 120,
-            height: 120,
-            speed: 80,
-            direction: 1,
-            type: 'boss_robot',
-            health: 60,
-            maxHealth: 60,
-            attackRange: 250,
-            attackCooldown: 0,
-            phase: 1,
-            attacks: ['laser_beam', 'missile_barrage', 'shockwave'],
-            color: '#2F4F4F',
-            isBoss: true,
-            armorType: 'titanium',
-            damageMultiplier: 0.25,
-            weakAgainst: 'electric',
-            resistantTo: ['physical', 'poison'],
-            baseDamage: 4,
-            phaseDamage: [3, 4, 5],
-            specialWeakness: 'circuit_break',
-            experienceValue: 1200
-        };
-    }
-    
-    function createBossWizard(level) {
-        return {
-            x: canvas.width / 2 - 50,
-            y: 150,
-            width: 80,
-            height: 100,
-            speed: 60,
-            direction: 1,
-            type: 'boss_wizard',
-            health: 40,
-            maxHealth: 40,
-            attackRange: 280,
-            attackCooldown: 0,
-            phase: 1,
-            attacks: ['meteor_shower', 'lightning_storm', 'summon_minions'],
-            color: '#4B0082',
-            isBoss: true,
-            armorType: 'arcane',
-            damageMultiplier: 0.3,
-            weakAgainst: 'silence',
-            resistantTo: ['magic', 'fire', 'ice'],
-            baseDamage: 3,
-            phaseDamage: [2, 3, 4],
-            magicBarrier: true,
-            experienceValue: 800
-        };
-    }
-    
     // ========== JUMP BOOSTER NOTIFICATION ==========
     function showJumpBoosterNotification(message, isError = false) {
-        // Remove existing notification
         const existingNotification = document.querySelector('.jump-booster-notification');
         if (existingNotification) {
             existingNotification.remove();
         }
         
-        // Create notification element
         const notification = document.createElement('div');
         notification.className = 'jump-booster-notification';
         notification.innerHTML = `
@@ -1084,7 +1341,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <span>${message}</span>
         `;
         
-        // Style the notification
         notification.style.cssText = `
             position: fixed;
             top: 100px;
@@ -1104,7 +1360,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         document.body.appendChild(notification);
         
-        // Remove after 3 seconds
         setTimeout(() => {
             notification.style.animation = 'slideOutRight 0.3s ease-in';
             setTimeout(() => notification.remove(), 300);
@@ -1120,10 +1375,137 @@ document.addEventListener('DOMContentLoaded', function() {
         setupEventListeners();
         updateGameStats();
         updateLevelButtons();
+        setupFullscreenToggle();
+        setupFullscreenControls();
+        
+        // Tambahkan polyfill untuk roundRect jika belum ada
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+                return this;
+            }
+        }
+        
+        // Event listener untuk klik tombol di canvas
+        canvas.addEventListener('click', handleCanvasClick);
         
         requestAnimationFrame(animate);
         
         console.log("✅ Game siap dimainkan!");
+    }
+    
+    // ========== HANDLE CANVAS CLICK (UNTUK TOMBOL LANJUT) ==========
+    function handleCanvasClick(e) {
+        if (gameState.showLevelTransition) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            // Cek apakah klik berada di area tombol "Lanjutkan ke Level Berikutnya"
+            const containerWidth = 500;
+            const containerHeight = 350;
+            const containerX = canvas.width / 2 - containerWidth / 2;
+            const containerY = canvas.height / 2 - containerHeight / 2;
+            
+            const buttonWidth = 300;
+            const buttonHeight = 50;
+            const buttonX = canvas.width / 2 - buttonWidth / 2;
+            const buttonY = containerY + 270;
+            
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                
+                console.log(`➡️ Tombol "Lanjutkan ke Level Berikutnya" diklik!`);
+                
+                // Tutup transisi screen
+                gameState.showLevelTransition = false;
+                
+                if (gameState.currentLevel < gameState.maxLevel) {
+                    // Simpan jump booster charges
+                    const currentBoosterCharges = player.jumpBoosterChargesThisLife;
+                    
+                    // Pindah ke level berikutnya
+                    gameState.currentLevel++;
+                    
+                    if (gameState.currentLevel > gameState.unlockedLevel) {
+                        gameState.unlockedLevel = gameState.currentLevel;
+                    }
+                    
+                    setupLevel(gameState.currentLevel);
+                    
+                    // Kembalikan jump booster charges
+                    player.jumpBoosterChargesThisLife = currentBoosterCharges;
+                    player.jumpBoosterCharges = currentBoosterCharges;
+                    
+                    console.log(`🚀 Melanjutkan ke Level ${gameState.currentLevel}! Jump booster charges: ${player.jumpBoosterChargesThisLife}`);
+                    
+                    // Mulai game
+                    startGame();
+                    
+                    // Tampilkan notifikasi
+                    showJumpBoosterNotification(`Level ${gameState.currentLevel} dimulai! (${player.jumpBoosterChargesThisLife} booster charges)`);
+                    
+                    // Efek partikel
+                    createParticles(canvas.width / 2, canvas.height / 2, 50, '#4CAF50');
+                    createParticles(canvas.width / 2, canvas.height / 2, 30, '#00FFFF');
+                } else {
+                    // Level 10 selesai, tampilkan screen akhir
+                    showGameCompleteScreen();
+                }
+            }
+            
+            // Cek apakah klik tombol di screen akhir
+            if (gameState.win && !gameState.showLevelTransition) {
+                const buttonWidth = 250;
+                const buttonHeight = 50;
+                const containerWidth = 600;
+                const containerHeight = 400;
+                const containerX = canvas.width / 2 - containerWidth / 2;
+                const containerY = canvas.height / 2 - containerHeight / 2;
+                
+                const buttonX = canvas.width / 2 - buttonWidth - 20;
+                const buttonY = containerY + 280;
+                const buttonX2 = canvas.width / 2 + 20;
+                
+                // Tombol "Main Lagi"
+                if (x >= buttonX && x <= buttonX + buttonWidth &&
+                    y >= buttonY && y <= buttonY + buttonHeight) {
+                    
+                    console.log("🔄 Tombol 'Main Lagi' diklik di screen akhir");
+                    
+                    // Reset game
+                    gameState.currentLevel = 1;
+                    gameState.score = 0;
+                    gameState.lives = 5;
+                    gameState.unlockedLevel = 1;
+                    gameState.win = false;
+                    
+                    player.resetJumpBoosterForGameOver();
+                    
+                    setupLevel(1);
+                    startGame();
+                }
+                
+                // Tombol "Menu Utama"
+                if (x >= buttonX2 && x <= buttonX2 + buttonWidth &&
+                    y >= buttonY && y <= buttonY + buttonHeight) {
+                    
+                    console.log("🏠 Tombol 'Menu Utama' diklik di screen akhir");
+                    
+                    returnToMainMenu();
+                }
+            }
+        }
     }
     
     // ========== SETUP LEVEL ==========
@@ -1137,6 +1519,7 @@ document.addEventListener('DOMContentLoaded', function() {
         gameState.win = false;
         gameState.gameOver = false;
         gameState.running = false;
+        gameState.showLevelTransition = false;
         flag.collected = false;
         
         platforms = [];
@@ -1154,8 +1537,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setupFlag(level);
         resetPlayer();
         
-        // JUMP BOOSTER: Pertahankan charges yang ada, jangan reset ke max
-        // Hanya reset jika game over atau restart game
         if (!player.jumpBoosterChargesThisLife) {
             player.jumpBoosterChargesThisLife = player.jumpBoosterMaxCharges;
         }
@@ -1166,6 +1547,9 @@ document.addEventListener('DOMContentLoaded', function() {
         updateGameStats();
         updateLevelButtons();
         hideNextLevelButton();
+        
+        // Setup tombol level berikutnya
+        setupNextLevelButton();
         
         console.log(`✅ Level ${level} setup selesai!`);
     }
@@ -1625,14 +2009,428 @@ document.addEventListener('DOMContentLoaded', function() {
         player.burnTimer = 0;
         player.lastPlatformDamage = 0;
         
-        // JUMP BOOSTER: Jangan reset charges di sini
-        // Charges hanya direset saat mati atau game over
         player.jumpBoosterActive = false;
         player.jumpBoosterTimer = 0;
         player.jumpPower = player.originalJumpPower;
         player.hasJumpBooster = false;
         
         console.log(`🚀 Player reset. Jump booster charges this life: ${player.jumpBoosterChargesThisLife}/${player.jumpBoosterMaxCharges}`);
+    }
+    
+    // ========== ENEMY CREATION FUNCTIONS ==========
+    function createRobot(level, speed, health, type) {
+        return {
+            x: 0, y: 0,
+            width: 40, height: 40,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'robot',
+            subtype: type,
+            health: health,
+            maxHealth: health,
+            attackRange: 150 + (level * 10),
+            attackCooldown: 0,
+            lastAttack: 0,
+            chasing: false,
+            patrolRange: 200,
+            color: type === 'toxic' ? '#32CD32' : 
+                   type === 'shooter' ? '#4169E1' : '#8B0000',
+            armorType: 'metal',
+            damageMultiplier: 1.0,
+            weakAgainst: 'electric',
+            resistantTo: 'physical',
+            baseDamage: 1,
+            attackType: 'melee',
+            experienceValue: 100
+        };
+    }
+    
+    function createSnake(level, speed, health, type) {
+        return {
+            x: 0, y: 0,
+            width: 40, height: 20,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'snake',
+            subtype: type,
+            health: health,
+            maxHealth: health,
+            attackRange: 100,
+            attackCooldown: 0,
+            lastAttack: 0,
+            chasing: false,
+            venomous: type === 'venom',
+            color: type === 'venom' ? '#006400' : '#228B22',
+            armorType: 'leather',
+            damageMultiplier: 1.2,
+            weakAgainst: 'fire',
+            resistantTo: 'poison',
+            baseDamage: type === 'venom' ? 2 : 1,
+            attackType: 'poison',
+            experienceValue: 80
+        };
+    }
+    
+    function createSpider(level, speed, health, type) {
+        return {
+            x: 0, y: 0,
+            width: 30, height: 30,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'spider',
+            subtype: type,
+            health: health,
+            maxHealth: health,
+            attackRange: 120,
+            attackCooldown: 0,
+            lastAttack: 0,
+            chasing: false,
+            webShooter: type === 'web',
+            color: type === 'web' ? '#4B0082' : '#8B0000',
+            armorType: 'exoskeleton',
+            damageMultiplier: 0.8,
+            weakAgainst: 'crush',
+            resistantTo: 'pierce',
+            baseDamage: 1,
+            webSlowEffect: type === 'web',
+            experienceValue: 90
+        };
+    }
+    
+    function createBat(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 30, height: 20,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'bat',
+            health: health,
+            maxHealth: health,
+            attackRange: 100,
+            attackCooldown: 0,
+            lastAttack: 0,
+            flying: true,
+            amplitude: 50 + (level * 5),
+            frequency: 2,
+            startY: 0,
+            color: '#4B0082',
+            armorType: 'flesh',
+            damageMultiplier: 1.5,
+            weakAgainst: 'fire',
+            resistantTo: 'none',
+            baseDamage: 1,
+            canDrainLife: true,
+            experienceValue: 60
+        };
+    }
+    
+    function createGhost(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 35, height: 50,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'ghost',
+            health: health,
+            maxHealth: health,
+            attackRange: 130,
+            attackCooldown: 0,
+            lastAttack: 0,
+            phaseThrough: true,
+            transparency: 0.7,
+            color: '#E6E6FA',
+            armorType: 'ethereal',
+            damageMultiplier: 0.5,
+            weakAgainst: 'holy',
+            resistantTo: 'physical',
+            baseDamage: 1,
+            canPassThroughWalls: true,
+            experienceValue: 120
+        };
+    }
+    
+    function createSlime(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 45, height: 30,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'slime',
+            health: health,
+            maxHealth: health,
+            attackRange: 80,
+            attackCooldown: 0,
+            lastAttack: 0,
+            splits: true,
+            jumpTimer: 0,
+            color: level >= 9 ? '#FF4500' : '#32CD32',
+            armorType: 'gel',
+            damageMultiplier: 0.7,
+            weakAgainst: 'ice',
+            resistantTo: 'poison',
+            baseDamage: level >= 9 ? 2 : 1,
+            canSplit: true,
+            splitHealth: Math.floor(health / 2),
+            experienceValue: 80
+        };
+    }
+    
+    function createEagle(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 50, height: 40,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'eagle',
+            health: health,
+            maxHealth: health,
+            attackRange: 200,
+            attackCooldown: 0,
+            lastAttack: 0,
+            flying: true,
+            diveAttack: true,
+            color: '#8B4513',
+            armorType: 'feather',
+            damageMultiplier: 1.3,
+            weakAgainst: 'pierce',
+            resistantTo: 'none',
+            baseDamage: 2,
+            diveDamage: 3,
+            experienceValue: 110
+        };
+    }
+    
+    function createYeti(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 60, height: 80,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'yeti',
+            health: health,
+            maxHealth: health,
+            attackRange: 120,
+            attackCooldown: 0,
+            lastAttack: 0,
+            throwSnowball: true,
+            color: '#F0F8FF',
+            armorType: 'fur',
+            damageMultiplier: 0.6,
+            weakAgainst: 'fire',
+            resistantTo: 'ice',
+            baseDamage: 2,
+            snowballSlowEffect: true,
+            experienceValue: 200
+        };
+    }
+    
+    function createWizard(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 35, height: 60,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'wizard',
+            health: health,
+            maxHealth: health,
+            attackRange: 250,
+            attackCooldown: 0,
+            lastAttack: 0,
+            spellCaster: true,
+            spellTypes: ['fire', 'ice', 'lightning'],
+            color: '#9370DB',
+            armorType: 'cloth',
+            damageMultiplier: 1.4,
+            weakAgainst: 'physical',
+            resistantTo: 'magic',
+            baseDamage: 1,
+            spellDamage: 2,
+            experienceValue: 150
+        };
+    }
+    
+    function createGolem(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 70, height: 90,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'golem',
+            health: health,
+            maxHealth: health,
+            attackRange: 100,
+            attackCooldown: 0,
+            lastAttack: 0,
+            throwsRocks: true,
+            color: '#696969',
+            armorType: 'stone',
+            damageMultiplier: 0.4,
+            weakAgainst: 'magic',
+            resistantTo: 'physical',
+            baseDamage: 3,
+            rockDamage: 2,
+            experienceValue: 180
+        };
+    }
+    
+    function createFairy(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 25, height: 25,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'fairy',
+            health: health,
+            maxHealth: health,
+            attackRange: 150,
+            attackCooldown: 0,
+            lastAttack: 0,
+            flying: true,
+            magicDust: true,
+            color: '#FF69B4',
+            armorType: 'magic',
+            damageMultiplier: 1.6,
+            weakAgainst: 'iron',
+            resistantTo: 'magic',
+            baseDamage: 1,
+            magicDustEffect: true,
+            experienceValue: 90
+        };
+    }
+    
+    function createDragon(level, speed, health, element) {
+        return {
+            x: 0, y: 0,
+            width: 80, height: 60,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'dragon',
+            element: element,
+            health: health,
+            maxHealth: health,
+            attackRange: 200,
+            attackCooldown: 0,
+            lastAttack: 0,
+            flying: true,
+            breathAttack: true,
+            color: element === 'fire' ? '#FF4500' : '#1E90FF',
+            armorType: 'scale',
+            damageMultiplier: 0.3,
+            weakAgainst: element === 'fire' ? 'ice' : 'fire',
+            resistantTo: element,
+            baseDamage: 3,
+            breathDamage: 4,
+            experienceValue: 250
+        };
+    }
+    
+    function createPhoenix(level, speed, health) {
+        return {
+            x: 0, y: 0,
+            width: 60, height: 50,
+            speed: speed,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            type: 'phoenix',
+            health: health,
+            maxHealth: health,
+            attackRange: 180,
+            attackCooldown: 0,
+            lastAttack: 0,
+            flying: true,
+            rebirth: true,
+            color: '#FF8C00',
+            armorType: 'fire',
+            damageMultiplier: 0.8,
+            weakAgainst: 'ice',
+            resistantTo: 'fire',
+            baseDamage: 2,
+            rebirthHealth: Math.floor(health / 2),
+            experienceValue: 200
+        };
+    }
+    
+    function createBossDragon(level) {
+        return {
+            x: canvas.width / 2 - 100,
+            y: 100,
+            width: 150,
+            height: 120,
+            speed: 100,
+            direction: 1,
+            type: 'boss_dragon',
+            health: 50,
+            maxHealth: 50,
+            attackRange: 300,
+            attackCooldown: 0,
+            phase: 1,
+            attacks: ['fire_breath', 'wing_slam', 'tail_whip'],
+            color: '#8B0000',
+            isBoss: true,
+            armorType: 'dragon_scale',
+            damageMultiplier: 0.2,
+            weakAgainst: 'ice',
+            resistantTo: ['fire', 'physical'],
+            baseDamage: 5,
+            phaseDamage: [3, 4, 5],
+            elementalWeakness: 'ice',
+            experienceValue: 1000
+        };
+    }
+    
+    function createBossRobot(level) {
+        return {
+            x: canvas.width / 2 - 75,
+            y: canvas.height - 200,
+            width: 120,
+            height: 120,
+            speed: 80,
+            direction: 1,
+            type: 'boss_robot',
+            health: 60,
+            maxHealth: 60,
+            attackRange: 250,
+            attackCooldown: 0,
+            phase: 1,
+            attacks: ['laser_beam', 'missile_barrage', 'shockwave'],
+            color: '#2F4F4F',
+            isBoss: true,
+            armorType: 'titanium',
+            damageMultiplier: 0.25,
+            weakAgainst: 'electric',
+            resistantTo: ['physical', 'poison'],
+            baseDamage: 4,
+            phaseDamage: [3, 4, 5],
+            specialWeakness: 'circuit_break',
+            experienceValue: 1200
+        };
+    }
+    
+    function createBossWizard(level) {
+        return {
+            x: canvas.width / 2 - 50,
+            y: 150,
+            width: 80,
+            height: 100,
+            speed: 60,
+            direction: 1,
+            type: 'boss_wizard',
+            health: 40,
+            maxHealth: 40,
+            attackRange: 280,
+            attackCooldown: 0,
+            phase: 1,
+            attacks: ['meteor_shower', 'lightning_storm', 'summon_minions'],
+            color: '#4B0082',
+            isBoss: true,
+            armorType: 'arcane',
+            damageMultiplier: 0.3,
+            weakAgainst: 'silence',
+            resistantTo: ['magic', 'fire', 'ice'],
+            baseDamage: 3,
+            phaseDamage: [2, 3, 4],
+            magicBarrier: true,
+            experienceValue: 800
+        };
     }
     
     // ========== DAMAGE CALCULATION SYSTEM ==========
@@ -2095,7 +2893,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         createParticles(player.x + player.width/2, player.y + player.height/2, 
                                        20, '#FF00FF');
                         
-                        // Apply immediate jump boost if on ground
                         if (player.onGround) {
                             player.velocityY = -player.jumpBoosterPower;
                             player.isJumping = true;
@@ -2126,7 +2923,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         createParticles(player.x + player.width/2, player.y + player.height/2, 
                                        25, '#00FFFF');
                         
-                        // Visual feedback
                         showJumpBoosterNotification(`Jump Booster Activated! (${player.jumpBoosterChargesThisLife} left for this life)`);
                     } else {
                         console.log("⚠️ JUMP BOOSTER: No charges available or already active");
@@ -2187,7 +2983,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     player.jumpBuffer = player.jumpBufferTime;
                     
                     if (player.onGround) {
-                        // Gunakan jump booster power jika aktif
                         const currentJumpPower = player.jumpBoosterActive ? player.jumpBoosterPower : player.jumpPower;
                         player.velocityY = -currentJumpPower;
                         player.isJumping = true;
@@ -2261,13 +3056,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (startBtn) {
             startBtn.addEventListener('click', function() {
                 console.log("🖱️ ===== START BUTTON CLICKED =====");
-                console.log("📊 Current game state:", {
-                    gameStarted: gameState.gameStarted,
-                    gameOver: gameState.gameOver,
-                    win: gameState.win,
-                    running: gameState.running,
-                    paused: gameState.paused
-                });
                 
                 if (!gameState.gameStarted) {
                     console.log("🚀 Starting NEW game");
@@ -2309,13 +3097,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (gameState.currentLevel < gameState.maxLevel && 
                     gameState.currentLevel + 1 <= gameState.unlockedLevel) {
                     
-                    // Pertahankan booster charges ke level berikutnya
                     const currentBoosterCharges = player.jumpBoosterChargesThisLife;
                     console.log(`🚀 Carrying over ${currentBoosterCharges} jump booster charges to next level`);
                     
                     setupLevel(gameState.currentLevel + 1);
                     
-                    // Override: Pastikan charges tetap dipertahankan
                     player.jumpBoosterChargesThisLife = currentBoosterCharges;
                     player.jumpBoosterCharges = currentBoosterCharges;
                     
@@ -2348,7 +3134,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log("🚀 Desktop: Jump Booster activated!");
                         showJumpBoosterNotification(`Jump Booster! (${player.jumpBoosterChargesThisLife} left for this life)`);
                         
-                        // Apply immediate jump if on ground
                         if (player.onGround) {
                             player.velocityY = -player.jumpBoosterPower;
                             player.isJumping = true;
@@ -2364,6 +3149,25 @@ document.addEventListener('DOMContentLoaded', function() {
                         showJumpBoosterNotification("No boosters left for this life!", true);
                     }
                 }
+            });
+        }
+        
+        // Tombol Fullscreen
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+        }
+        
+        // Tombol toggle auto-progress
+        const toggleAutoProgressBtn = document.getElementById('toggleAutoProgressBtn');
+        if (toggleAutoProgressBtn) {
+            toggleAutoProgressBtn.addEventListener('click', function() {
+                gameState.autoProgress = !gameState.autoProgress;
+                this.innerHTML = gameState.autoProgress ? 
+                    '<i class="fas fa-forward"></i> Auto Progress: ON' : 
+                    '<i class="fas fa-pause"></i> Auto Progress: OFF';
+                console.log(`➡️ Auto Progress: ${gameState.autoProgress ? 'ON' : 'OFF'}`);
+                showJumpBoosterNotification(`Auto Progress ${gameState.autoProgress ? 'diaktifkan' : 'dimatikan'}`);
             });
         }
         
@@ -2387,6 +3191,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+        
+        // Fullscreen change listener
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
         
         console.log("✅ Event listeners setup complete!");
     }
@@ -2755,18 +3565,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log("🚀 Mobile: Jump Booster activated!");
                         this.classList.add('active');
                         
-                        // Update UI
                         const boosterCount = this.querySelector('.booster-count');
                         if (boosterCount) {
                             boosterCount.textContent = player.jumpBoosterChargesThisLife;
                         }
                         
-                        // Visual feedback
                         createParticles(player.x + player.width/2, player.y + player.height/2, 
                                        25, '#00FFFF');
                         showJumpBoosterNotification(`Jump Booster! (${player.jumpBoosterChargesThisLife} left for this life)`);
                         
-                        // Apply immediate jump if on ground
                         if (player.onGround) {
                             player.velocityY = -player.jumpBoosterPower;
                             player.isJumping = true;
@@ -2807,29 +3614,133 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // ========== FULLSCREEN FUNCTIONS ==========
+    function setupFullscreenToggle() {
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+        }
+        
+        const mobileFullscreenBtn = document.getElementById('mobileFullscreenBtn');
+        if (mobileFullscreenBtn) {
+            mobileFullscreenBtn.addEventListener('click', toggleFullscreen);
+        }
+    }
+    
+    function toggleFullscreen() {
+        const gameContainer = document.getElementById('gameContainer');
+        if (!gameContainer) return;
+        
+        if (!document.fullscreenElement) {
+            if (gameContainer.requestFullscreen) {
+                gameContainer.requestFullscreen();
+            } else if (gameContainer.webkitRequestFullscreen) {
+                gameContainer.webkitRequestFullscreen();
+            } else if (gameContainer.msRequestFullscreen) {
+                gameContainer.msRequestFullscreen();
+            }
+            gameState.isFullscreen = true;
+            console.log("🖥️ Entered fullscreen mode");
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+            gameState.isFullscreen = false;
+            console.log("📱 Exited fullscreen mode");
+        }
+    }
+    
+    function handleFullscreenChange() {
+        const isFullscreen = document.fullscreenElement || 
+                           document.webkitFullscreenElement || 
+                           document.mozFullScreenElement || 
+                           document.msFullscreenElement;
+        
+        gameState.isFullscreen = !!isFullscreen;
+        
+        const gameContainer = document.getElementById('gameContainer');
+        const mobileControls = document.getElementById('mobileControls');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        if (isFullscreen) {
+            if (gameContainer) {
+                gameContainer.classList.add('fullscreen-active');
+            }
+            if (mobileControls) {
+                mobileControls.classList.add('fullscreen-visible');
+                mobileControls.style.display = 'flex';
+            }
+            if (fullscreenBtn) {
+                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                fullscreenBtn.title = "Keluar Fullscreen";
+            }
+            console.log("🖥️ Fullscreen mode active");
+        } else {
+            if (gameContainer) {
+                gameContainer.classList.remove('fullscreen-active');
+            }
+            if (mobileControls) {
+                mobileControls.classList.remove('fullscreen-visible');
+                if (window.innerWidth >= 769) {
+                    mobileControls.style.display = 'none';
+                }
+            }
+            if (fullscreenBtn) {
+                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+                fullscreenBtn.title = "Fullscreen";
+            }
+            console.log("📱 Fullscreen mode exited");
+        }
+    }
+    
+    function setupFullscreenControls() {
+        const gameContainer = document.getElementById('gameContainer');
+        const mobileControls = document.getElementById('mobileControls');
+        const hudControls = document.querySelector('.hud-controls');
+        
+        if (!gameContainer || !mobileControls) return;
+        
+        mobileControls.style.position = 'fixed';
+        mobileControls.style.bottom = '20px';
+        mobileControls.style.left = '0';
+        mobileControls.style.right = '0';
+        mobileControls.style.zIndex = '1000';
+        
+        if (hudControls) {
+            hudControls.style.position = 'fixed';
+            hudControls.style.top = '20px';
+            hudControls.style.right = '20px';
+            hudControls.style.zIndex = '1000';
+        }
+        
+        const autoProgressBtn = document.createElement('button');
+        autoProgressBtn.id = 'toggleAutoProgressBtn';
+        autoProgressBtn.className = 'control-btn';
+        autoProgressBtn.innerHTML = '<i class="fas fa-forward"></i> Auto Progress: OFF';
+        autoProgressBtn.title = "Toggle Auto Progress ke Level Berikutnya";
+        
+        if (hudControls) {
+            hudControls.appendChild(autoProgressBtn);
+        }
+        
+        console.log("✅ Fullscreen controls setup complete");
+    }
+    
     // ========== GAME CONTROLS ==========
     function startGame() {
         console.log("🚀 ===== START GAME FUNCTION CALLED =====");
-        console.log("📊 Before start:", {
-            running: gameState.running,
-            gameStarted: gameState.gameStarted,
-            gameOver: gameState.gameOver,
-            win: gameState.win
-        });
         
         gameState.running = true;
         gameState.gameStarted = true;
         gameState.gameOver = false;
         gameState.win = false;
         gameState.paused = false;
+        gameState.showLevelTransition = false;
         gameState.lastTime = performance.now();
-        
-        console.log("📊 After start:", {
-            running: gameState.running,
-            gameStarted: gameState.gameStarted,
-            gameOver: gameState.gameOver,
-            win: gameState.win
-        });
         
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
@@ -2871,7 +3782,6 @@ document.addEventListener('DOMContentLoaded', function() {
         gameState.running = true;
         gameState.gameStarted = true;
         
-        // Reset jump booster untuk game baru
         player.resetJumpBoosterForGameOver();
         
         setupLevel(gameState.currentLevel);
@@ -2921,6 +3831,7 @@ document.addEventListener('DOMContentLoaded', function() {
         gameState.gameOver = false;
         gameState.win = false;
         gameState.paused = false;
+        gameState.showLevelTransition = false;
         
         const startBtn = document.getElementById('startBtn');
         if (startBtn) {
@@ -2936,7 +3847,6 @@ document.addEventListener('DOMContentLoaded', function() {
         hideNextLevelButton();
         updateGameStats();
         
-        // Reset ke level 1 tapi jangan start game
         setupLevel(1);
         
         console.log("✅ Returned to main menu!");
@@ -2957,6 +3867,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function update(deltaTime) {
+        if (gameState.showLevelTransition) {
+            updateLevelTransition(deltaTime);
+            return;
+        }
+        
+        if (!gameState.running || gameState.paused || gameState.gameOver || gameState.win) {
+            return;
+        }
+        
         updatePlayer(deltaTime);
         updatePlatforms(deltaTime);
         updateEnemies(deltaTime);
@@ -2966,7 +3885,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateParticles(deltaTime);
         updatePlayerTimers(deltaTime);
         
-        // ===== UPDATE JUMP BOOSTER =====
         player.updateJumpBooster(deltaTime);
         
         updateGameTimer(deltaTime);
@@ -2978,10 +3896,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updatePlayer(deltaTime) {
-        // ===== HANDLE JUMP INPUT =====
         handleJumpInput(deltaTime);
         
-        // ===== INPUT GERAKAN =====
         let targetVelocityX = 0;
         
         if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
@@ -3021,11 +3937,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // ===== APLIKASI GRAVITY =====
         player.velocityY += player.gravity * deltaTime;
         player.velocityY = Math.min(player.velocityY, player.maxFallSpeed);
         
-        // Update posisi
         player.x += player.velocityX * deltaTime;
         player.y += player.velocityY * deltaTime;
         
@@ -3141,7 +4055,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 !player.doubleJumpUsed &&
                 player.velocityY > -player.jumpPower * 0.7) {
                 
-                // Gunakan jump booster power jika aktif
                 const doubleJumpPower = player.jumpBoosterActive ? 
                     player.jumpBoosterPower * 0.7 : player.jumpPower * 0.95;
                 player.velocityY = -doubleJumpPower;
@@ -3172,7 +4085,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (player.jumpRequested || canJumpFromBuffer) {
             if (canJumpFromGround || canJumpFromCoyote) {
-                // Gunakan jump booster power jika aktif
                 const currentJumpPower = player.jumpBoosterActive ? player.jumpBoosterPower : player.jumpPower;
                 
                 player.velocityY = -currentJumpPower;
@@ -3189,7 +4101,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 createParticles(player.x + player.width/2, player.y + player.height/2, 
                                particleCount, particleColor);
             } else if (canDoubleJump) {
-                // Double jump dengan booster
                 const doubleJumpPower = player.jumpBoosterActive ? 
                     player.jumpBoosterPower * 0.8 : player.jumpPower * 0.8;
                 player.velocityY = -doubleJumpPower;
@@ -3686,7 +4597,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         player.comboCount = 0;
         
-        // Reset jump booster untuk sesi hidup baru saat karakter mati (kehilangan nyawa)
         if (finalDamage > 0 && gameState.lives > 0) {
             player.resetJumpBoosterForNewLife();
             console.log(`💀 Damage taken! Reset jump booster for new life. Charges: ${player.jumpBoosterChargesThisLife}`);
@@ -3737,7 +4647,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 gameState.score += 500;
                 gameState.lives = Math.min(gameState.lives + 2, 10);
                 
-                // ===== JUMP BOOSTER RECHARGE =====
                 const recharged = player.rechargeJumpBooster();
                 if (recharged) {
                     console.log(`✨ Jump booster recharged from star! Charges: ${player.jumpBoosterChargesThisLife}`);
@@ -3758,46 +4667,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateGameStats();
     }
     
-    function winLevel() {
-        gameState.win = true;
-        gameState.running = false;
-        
-        const timeBonus = Math.floor(gameState.timeLeft * 10);
-        const livesBonus = gameState.lives * 100;
-        const levelBonus = gameState.currentLevel * 500;
-        
-        gameState.score += timeBonus + livesBonus + levelBonus;
-        
-        if (gameState.currentLevel < gameState.maxLevel) {
-            if (gameState.currentLevel + 1 > gameState.unlockedLevel) {
-                gameState.unlockedLevel = gameState.currentLevel + 1;
-            }
-        }
-        
-        // JUMP BOOSTER: TIDAK reset saat menang level
-        // Charges tetap dipertahankan untuk level berikutnya
-        console.log(`🏆 Level ${gameState.currentLevel} completed! Jump booster charges carried over: ${player.jumpBoosterChargesThisLife}`);
-        
-        updateGameStats();
-        updateLevelButtons();
-        
-        setTimeout(() => {
-            showLevelCompletePopup(timeBonus, livesBonus, levelBonus);
-        }, 1000);
-    }
-    
-    function gameOver() {
-        gameState.gameOver = true;
-        gameState.running = false;
-        
-        // Reset jump booster untuk game baru
-        player.resetJumpBoosterForGameOver();
-        
-        setTimeout(() => {
-            alert(`Game Over!\nSkor akhir: ${gameState.score}\nLevel yang dicapai: ${gameState.currentLevel}\n\nJump Booster telah direset ke 3 charges untuk permainan baru.`);
-        }, 500);
-    }
-    
     function checkWinCondition() {
         if (flag.collected && !gameState.win) {
             winLevel();
@@ -3808,6 +4677,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (gameState.lives <= 0 && !gameState.gameOver) {
             gameOver();
         }
+    }
+    
+    function gameOver() {
+        gameState.gameOver = true;
+        gameState.running = false;
+        
+        player.resetJumpBoosterForGameOver();
+        
+        setTimeout(() => {
+            alert(`Game Over!\nSkor akhir: ${gameState.score}\nLevel yang dicapai: ${gameState.currentLevel}\n\nJump Booster telah direset ke 3 charges untuk permainan baru.`);
+        }, 500);
     }
     
     // ========== UI FUNCTIONS ==========
@@ -3826,18 +4706,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (unlockedLevelEl) unlockedLevelEl.textContent = gameState.unlockedLevel;
         if (boosterCounterEl) boosterCounterEl.textContent = player.jumpBoosterChargesThisLife;
         
-        // Update jump booster display di mobile controls
         const boosterCount = document.querySelector('.booster-count');
         if (boosterCount) {
             boosterCount.textContent = player.jumpBoosterChargesThisLife;
         }
         
-        // Update jump booster button state
         const jumpBoosterBtn = document.getElementById('jumpBoosterBtn');
         if (jumpBoosterBtn) {
             jumpBoosterBtn.disabled = player.jumpBoosterChargesThisLife <= 0 || player.jumpBoosterActive;
             
-            // Update tooltip atau title
             if (player.jumpBoosterChargesThisLife <= 0) {
                 jumpBoosterBtn.title = "No boosters left for this life!";
             } else if (player.jumpBoosterActive) {
@@ -3847,7 +4724,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Update desktop booster button
         const useBoosterBtn = document.getElementById('useBoosterBtn');
         if (useBoosterBtn) {
             useBoosterBtn.disabled = player.jumpBoosterChargesThisLife <= 0 || player.jumpBoosterActive;
@@ -3905,6 +4781,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showLevelCompletePopup(timeBonus, livesBonus, levelBonus) {
+        // Gunakan popup baru jika tersedia
+        if (window.showLevelCompletePopupNew) {
+            showLevelCompletePopupNew(timeBonus, livesBonus, levelBonus);
+            return;
+        }
+        
+        // Fallback ke popup lama
         let popup = document.querySelector('.level-complete-popup');
         let overlay = document.querySelector('.overlay');
         
@@ -3929,49 +4812,56 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
                 <div class="popup-buttons">
-                    <button class="popup-btn next">Level Berikutnya</button>
+                    ${gameState.currentLevel < gameState.maxLevel ? 
+                        `<button class="popup-btn next">Lanjut ke Level ${gameState.currentLevel + 1}</button>` : 
+                        `<button class="popup-btn next" disabled>Game Selesai!</button>`
+                    }
                     <button class="popup-btn retry">Ulangi Level</button>
                     <button class="popup-btn menu">Menu Utama</button>
                 </div>
             `;
             document.body.appendChild(popup);
             
-            popup.querySelector('.popup-btn.next').addEventListener('click', function() {
-                if (gameState.currentLevel < gameState.maxLevel) {
-                    // Pertahankan booster charges ke level berikutnya
-                    const currentBoosterCharges = player.jumpBoosterChargesThisLife;
-                    
-                    setupLevel(gameState.currentLevel + 1);
-                    
-                    // Override: Pastikan charges tetap dipertahankan
-                    player.jumpBoosterChargesThisLife = currentBoosterCharges;
-                    player.jumpBoosterCharges = currentBoosterCharges;
-                    
-                    console.log(`🚀 Jump booster carried over to next level: ${player.jumpBoosterChargesThisLife} charges`);
-                    
-                    // Auto-start level berikutnya
-                    startGame();
-                }
-                overlay.classList.remove('show');
-                popup.classList.remove('show');
-            });
+            // Setup event listeners
+            const nextBtn = popup.querySelector('.popup-btn.next');
+            const retryBtn = popup.querySelector('.popup-btn.retry');
+            const menuBtn = popup.querySelector('.popup-btn.menu');
             
-            popup.querySelector('.popup-btn.retry').addEventListener('click', function() {
-                // Saat retry level, reset ke 3 charges
-                player.resetJumpBoosterForNewLife();
-                console.log(`🔄 Level retry - Jump booster reset to: ${player.jumpBoosterChargesThisLife} charges`);
-                
-                restartGame();
-                overlay.classList.remove('show');
-                popup.classList.remove('show');
-            });
+            if (nextBtn && !nextBtn.disabled) {
+                nextBtn.addEventListener('click', function() {
+                    if (gameState.currentLevel < gameState.maxLevel) {
+                        const currentBoosterCharges = player.jumpBoosterChargesThisLife;
+                        
+                        setupLevel(gameState.currentLevel + 1);
+                        
+                        player.jumpBoosterChargesThisLife = currentBoosterCharges;
+                        player.jumpBoosterCharges = currentBoosterCharges;
+                        
+                        startGame();
+                    }
+                    overlay.classList.remove('show');
+                    popup.classList.remove('show');
+                });
+            }
             
-            popup.querySelector('.popup-btn.menu').addEventListener('click', function() {
-                returnToMainMenu();
-                overlay.classList.remove('show');
-                popup.classList.remove('show');
-            });
+            if (retryBtn) {
+                retryBtn.addEventListener('click', function() {
+                    player.resetJumpBoosterForNewLife();
+                    restartGame();
+                    overlay.classList.remove('show');
+                    popup.classList.remove('show');
+                });
+            }
+            
+            if (menuBtn) {
+                menuBtn.addEventListener('click', function() {
+                    returnToMainMenu();
+                    overlay.classList.remove('show');
+                    popup.classList.remove('show');
+                });
+            }
         } else {
+            // Update konten popup yang sudah ada
             popup.querySelector('h2').innerHTML = `<i class="fas fa-trophy"></i> Level ${gameState.currentLevel} Selesai!`;
             popup.querySelectorAll('.stats span')[0].textContent = timeBonus;
             popup.querySelectorAll('.stats span')[1].textContent = livesBonus;
@@ -3980,12 +4870,14 @@ document.addEventListener('DOMContentLoaded', function() {
             popup.querySelectorAll('.stats span')[4].textContent = player.jumpBoosterChargesThisLife;
             
             const nextBtn = popup.querySelector('.popup-btn.next');
-            if (gameState.currentLevel < gameState.maxLevel) {
-                nextBtn.textContent = 'Level Berikutnya';
-                nextBtn.disabled = false;
-            } else {
-                nextBtn.textContent = 'Game Selesai!';
-                nextBtn.disabled = true;
+            if (nextBtn) {
+                if (gameState.currentLevel < gameState.maxLevel) {
+                    nextBtn.textContent = `Lanjut ke Level ${gameState.currentLevel + 1}`;
+                    nextBtn.disabled = false;
+                } else {
+                    nextBtn.textContent = 'Game Selesai!';
+                    nextBtn.disabled = true;
+                }
             }
         }
         
@@ -4016,7 +4908,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!gameState.gameStarted) {
             drawStartScreen();
-            return; // HENTIKAN di sini, jangan draw yang lain
+            return;
         }
         
         if (gameState.gameOver) {
@@ -4024,8 +4916,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (gameState.win) {
-            drawWinScreen();
+        if (gameState.win && !gameState.showLevelTransition) {
+            drawGameCompleteScreen();
+            return;
+        }
+        
+        if (gameState.showLevelTransition) {
+            drawLevelTransition();
             return;
         }
         
@@ -4046,20 +4943,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         drawUI();
         
-        // Draw combo counter
         if (player.comboCount > 1 && gameState.running && !gameState.paused) {
             drawComboCounter();
         }
         
-        // Draw elemental indicator
         if (player.attackElement && gameState.running && !gameState.paused) {
             drawElementalIndicator();
         }
         
-        // Draw status effects
         drawStatusEffects();
         
-        // Draw jump booster indicator
         drawJumpBoosterIndicator();
     }
     
@@ -4068,519 +4961,245 @@ document.addEventListener('DOMContentLoaded', function() {
             const boostX = canvas.width - 150;
             const boostY = 80;
             
-            // Timer bar
             const barWidth = 100;
             const barHeight = 15;
             const progress = player.jumpBoosterTimer / player.jumpBoosterDuration;
             
-            // Background
             ctx.fillStyle = '#333333';
             ctx.fillRect(boostX, boostY, barWidth, barHeight);
             
-            // Progress
             ctx.fillStyle = '#00FFFF';
             ctx.fillRect(boostX, boostY, barWidth * progress, barHeight);
             
-            // Border
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 2;
             ctx.strokeRect(boostX, boostY, barWidth, barHeight);
             
-            // Icon
             ctx.fillStyle = '#00FFFF';
             ctx.font = 'bold 20px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('🚀', boostX + barWidth/2, boostY - 20);
             
-            // Text
             ctx.font = '14px Arial';
             ctx.fillText(`JUMP BOOSTER (${player.jumpBoosterChargesThisLife} left)`, boostX + barWidth/2, boostY + 30);
             
-            // Timer text
             ctx.fillStyle = '#FFFFFF';
             ctx.font = 'bold 16px Arial';
-            ctx.fillText(`${Math.ceil(player.jumpBoosterTimer)}s`, boostX + barWidth/2, boostY + barHeight/2 + 1);
-        } else if (player.jumpBoosterChargesThisLife > 0 && gameState.running && !gameState.paused) {
-            // Show charges count even when not active
-            const boostX = canvas.width - 150;
-            const boostY = 80;
-            
-            ctx.fillStyle = '#00FFFF';
-            ctx.font = 'bold 20px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('🚀', boostX + 50, boostY - 10);
-            
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = '14px Arial';
-            ctx.fillText(`Charges: ${player.jumpBoosterChargesThisLife}`, boostX + 50, boostY + 15);
-        }
-    }
-    
-    function drawComboCounter() {
-        const comboX = canvas.width / 2;
-        const comboY = 50;
-        
-        ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 24px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`COMBO x${player.comboCount}!`, comboX, comboY);
-        
-        ctx.shadowColor = '#FF4500';
-        ctx.shadowBlur = 10;
-        ctx.fillText(`COMBO x${player.comboCount}!`, comboX, comboY);
-        ctx.shadowBlur = 0;
-    }
-    
-    function drawElementalIndicator() {
-        const elemX = canvas.width - 100;
-        const elemY = 80;
-        
-        let elementColor = '#FFFFFF';
-        let elementSymbol = '❓';
-        
-        switch(player.attackElement) {
-            case 'fire':
-                elementColor = '#FF4500';
-                elementSymbol = '🔥';
-                break;
-            case 'ice':
-                elementColor = '#00FFFF';
-                elementSymbol = '❄️';
-                break;
-            case 'electric':
-                elementColor = '#FFFF00';
-                elementSymbol = '⚡';
-                break;
-        }
-        
-        ctx.fillStyle = elementColor;
-        ctx.font = 'bold 20px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(elementSymbol, elemX, elemY);
-        
-        ctx.font = '14px Arial';
-        ctx.fillText(player.attackElement.toUpperCase(), elemX, elemY + 25);
-    }
-    
-    function drawStatusEffects() {
-        let yPos = 100;
-        
-        if (player.isPoisoned) {
-            ctx.fillStyle = '#00FF00';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('☠️ Poisoned', 20, yPos);
-            yPos += 25;
-        }
-        
-        if (player.isSlowed) {
-            ctx.fillStyle = '#00FFFF';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('🐌 Slowed', 20, yPos);
-            yPos += 25;
-        }
-        
-        if (player.isBurning) {
-            ctx.fillStyle = '#FF4500';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('🔥 Burning', 20, yPos);
-            yPos += 25;
-        }
-        
-        // Draw jump booster charges
-        if (player.jumpBoosterChargesThisLife > 0) {
-            ctx.fillStyle = '#00FFFF';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText(`🚀 x${player.jumpBoosterChargesThisLife}`, 20, yPos);
+            ctx.fillText(`${Math.ceil(player.jumpBoosterTimer)}s`, boostX + barWidth/2, boostY + barHeight/2);
         }
     }
     
     function drawStartScreen() {
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, '#1a472a');
-        gradient.addColorStop(1, '#2a623d');
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = '#1a472a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        ctx.fillStyle = '#4CAF50';
+        // Title
+        ctx.fillStyle = '#FFD700';
         ctx.font = 'bold 48px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('KOKO ADVENTURE', canvas.width/2, canvas.height/3);
+        ctx.fillText('KOKO ADVENTURE', canvas.width / 2, 100);
         
-        ctx.fillStyle = '#a5d6a7';
+        // Subtitle
+        ctx.fillStyle = '#4CAF50';
         ctx.font = '24px Arial';
-        ctx.fillText('v4.0 - Sistem Damage Lengkap', canvas.width/2, canvas.height/3 + 60);
+        ctx.fillText('v4.0 - 10 Level Complete!', canvas.width / 2, 160);
+        
+        // Player sprite example
+        drawPixelPlayer(canvas.width / 2 - 20, 220, 40, 40);
+        
+        // Features
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '18px Arial';
+        ctx.textAlign = 'left';
+        
+        const features = [
+            '✨ Sistem Damage Komprehensif',
+            '🚀 Jump Booster (3 charges per hidup)',
+            '➡️ Progres Level Otomatis/Tombol Manual',
+            '🖥️ Kontrol Fullscreen',
+            '🎮 10 Level Menantang',
+            '⚔️ Elemental & Armor Types',
+            '🛡️ Combo System',
+            '🏆 Animated Level Transition'
+        ];
+        
+        for (let i = 0; i < features.length; i++) {
+            ctx.fillText(features[i], canvas.width / 2 - 200, 300 + i * 30);
+        }
+        
+        // Instructions
+        ctx.fillStyle = '#00FFFF';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Kontrol:', canvas.width / 2, 580);
         
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '20px Arial';
-        ctx.fillText('🎮 SISTEM DAMAGE: Elemental, Armor Types, Combo 🎮', canvas.width/2, canvas.height/2);
+        ctx.font = '16px Arial';
+        ctx.fillText('← → : Bergerak | Spasi/X : Lompat | Z : Serang', canvas.width / 2, 610);
+        ctx.fillText('B : Jump Booster | ESC : Jeda', canvas.width / 2, 635);
         
-        ctx.fillStyle = '#a5d6a7';
-        ctx.font = '18px Arial';
-        ctx.fillText('Tekan tombol "Mulai Game" untuk memulai', canvas.width/2, canvas.height/2 + 50);
-        
-        ctx.fillStyle = '#a5d6a7';
-        ctx.font = '18px Arial';
-        ctx.fillText('Kontrol:', canvas.width/2, canvas.height/2 + 100);
-        ctx.fillText('← → : Gerak | Spasi/↑/X : Lompat | Z : Serang', canvas.width/2, canvas.height/2 + 130);
-        ctx.fillText('JUMP BOOSTER: B (3 charges per hidup, reset saat mati)', canvas.width/2, canvas.height/2 + 160);
-        
+        // Start prompt
         ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 22px Arial';
-        ctx.fillText(`Level Terbuka: ${gameState.unlockedLevel}/10`, canvas.width/2, canvas.height/2 + 200);
-        
-        ctx.fillStyle = '#4CAF50';
         ctx.font = 'bold 28px Arial';
-        ctx.fillText('Selamat Bertualang!', canvas.width/2, canvas.height - 100);
+        ctx.fillText('Klik "Mulai Game" untuk memulai!', canvas.width / 2, 700);
+    }
+    
+    function drawPixelPlayer(x, y, width, height) {
+        ctx.fillStyle = '#FFD700'; // Body
+        ctx.fillRect(x, y, width, height);
+        
+        ctx.fillStyle = '#000000'; // Eyes
+        ctx.fillRect(x + width/4, y + height/4, 5, 5);
+        ctx.fillRect(x + 3*width/4 - 5, y + height/4, 5, 5);
+        
+        ctx.fillStyle = '#FF4500'; // Mouth
+        ctx.fillRect(x + width/3, y + 2*height/3, width/3, 5);
     }
     
     function drawBackground() {
+        // Sky
         const config = levelConfigs[gameState.currentLevel];
         
-        const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        
-        switch(config.theme) {
-            case 'day':
-                skyGradient.addColorStop(0, '#87CEFA');
-                skyGradient.addColorStop(1, '#98FB98');
-                break;
-            case 'night':
-                skyGradient.addColorStop(0, '#0A0A2A');
-                skyGradient.addColorStop(1, '#1A472A');
-                break;
-            case 'fog':
-                skyGradient.addColorStop(0, '#778899');
-                skyGradient.addColorStop(1, '#8FBC8F');
-                break;
-            case 'toxic':
-                skyGradient.addColorStop(0, '#556B2F');
-                skyGradient.addColorStop(1, '#6B8E23');
-                break;
-            case 'mountain':
-                skyGradient.addColorStop(0, '#4682B4');
-                skyGradient.addColorStop(1, '#98FB98');
-                break;
-            case 'magic':
-                skyGradient.addColorStop(0, '#4B0082');
-                skyGradient.addColorStop(1, '#9370DB');
-                break;
-            case 'fire':
-                skyGradient.addColorStop(0, '#8B0000');
-                skyGradient.addColorStop(1, '#FF4500');
-                break;
-            case 'boss':
-                skyGradient.addColorStop(0, '#2F4F4F');
-                skyGradient.addColorStop(1, '#8B0000');
-                break;
-            default:
-                skyGradient.addColorStop(0, '#87CEEB');
-                skyGradient.addColorStop(1, '#90EE90');
+        if (config.theme === 'night') {
+            ctx.fillStyle = '#0a1929';
+        } else if (config.theme === 'toxic') {
+            ctx.fillStyle = '#556B2F';
+        } else if (config.theme === 'fire') {
+            ctx.fillStyle = '#8B0000';
+        } else {
+            ctx.fillStyle = '#87CEEB';
         }
+        ctx.fillRect(gameState.camera.x, gameState.camera.y, 
+                    gameState.camera.width, gameState.camera.height);
         
-        ctx.fillStyle = skyGradient;
-        ctx.fillRect(gameState.camera.x, gameState.camera.y, canvas.width, canvas.height);
-        
-        if (config.theme === 'day') {
-            const sunX = gameState.camera.x + 50;
-            const sunY = gameState.camera.y + 50;
-            
-            ctx.fillStyle = '#FFD700';
-            for (let i = 0; i < 5; i++) {
-                for (let j = 0; j < 5; j++) {
-                    if ((i === 2 || j === 2) || (i > 0 && i < 4 && j > 0 && j < 4)) {
-                        ctx.fillRect(sunX + i*4, sunY + j*4, 4, 4);
-                    }
-                }
-            }
-        } else if (config.theme === 'night') {
-            const moonX = gameState.camera.x + 50;
-            const moonY = gameState.camera.y + 50;
-            
-            ctx.fillStyle = '#F0F8FF';
-            for (let i = 0; i < 5; i++) {
-                for (let j = 0; j < 5; j++) {
-                    if (i >= 2 || j >= 2) {
-                        ctx.fillRect(moonX + i*4, moonY + j*4, 4, 4);
-                    }
-                }
-            }
-        }
-        
-        if (config.theme === 'day' || config.theme === 'mountain') {
-            for (let cloud of backgroundElements.filter(e => e.type === 'cloud')) {
-                const parallaxOffset = gameState.camera.x * 0.3;
-                const cloudX = cloud.x - parallaxOffset;
-                const cloudY = cloud.y - gameState.camera.y * 0.1;
-                
-                if (cloudX + cloud.width > gameState.camera.x && 
-                    cloudX < gameState.camera.x + canvas.width) {
-                    drawPixelCloud(cloudX, cloudY, cloud.width, cloud.height);
-                }
-            }
-        }
-        
-        if (config.theme === 'mountain') {
-            for (let element of backgroundElements.filter(e => e.type === 'mountain')) {
-                const parallaxOffset = gameState.camera.x * 0.5;
-                const mountainX = element.x - parallaxOffset;
-                const mountainY = element.y - gameState.camera.y * 0.2;
-                
-                if (mountainX + element.width > gameState.camera.x && 
-                    mountainX < gameState.camera.x + canvas.width) {
-                    drawPixelMountain(mountainX, mountainY, element.width, element.height, element.color);
-                }
-            }
-        }
-        
+        // Draw background elements (far back)
         for (let element of backgroundElements) {
-            const drawX = element.x;
-            const drawY = element.y;
+            if (element.layer !== 'back') continue;
+            if (!isInViewport(element)) continue;
             
-            if (isInViewport(element)) {
-                if (element.type === 'tree') {
-                    let treeX = drawX;
-                    let treeY = drawY - element.height;
-                    
-                    if (element.layer === 'back') {
-                        treeX = drawX - gameState.camera.x * 0.7;
-                        treeY = (drawY - element.height) - gameState.camera.y * 0.1;
+            switch(element.type) {
+                case 'tree':
+                    drawPixelTree(element.x, element.y - element.height, 
+                                element.width, element.height);
+                    break;
+                case 'mountain':
+                    drawPixelMountain(element.x, element.y - element.height,
+                                    element.width, element.height, element.color);
+                    break;
+                case 'cloud':
+                    drawPixelCloud(element.x, element.y, 
+                                 element.width, element.height);
+                    break;
+                case 'star':
+                    const alpha = 0.7 + Math.sin(Date.now()/1000 + element.twinkle * Math.PI) * 0.3;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.fillRect(element.x, element.y, element.size, element.size);
+                    break;
+            }
+        }
+        
+        // Mid-ground
+        for (let element of backgroundElements) {
+            if (element.layer !== 'front') continue;
+            if (!isInViewport(element)) continue;
+            
+            switch(element.type) {
+                case 'bush':
+                    drawPixelBush(element.x, element.y, 
+                                element.width, element.height);
+                    break;
+                case 'log':
+                    drawPixelLog(element.x, element.y - element.height,
+                               element.width, element.height);
+                    break;
+            }
+        }
+    }
+    
+    function isInViewport(obj) {
+        return obj.x < gameState.camera.x + gameState.camera.width + 100 &&
+               obj.x + (obj.width || 0) > gameState.camera.x - 100 &&
+               obj.y < gameState.camera.y + gameState.camera.height + 100 &&
+               obj.y + (obj.height || 0) > gameState.camera.y - 100;
+    }
+    
+    function drawPlatforms() {
+        for (let platform of platforms) {
+            if (!isInViewport(platform)) continue;
+            
+            if (platform.type === 'ground') {
+                drawGrassTexture(platform.x, platform.y, platform.width, platform.height);
+            } else if (platform.type === 'disappearing') {
+                if (!platform.visible) continue;
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Blinking effect
+                const blink = Math.sin(Date.now() / 200) > 0;
+                if (blink) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fillRect(platform.x + 5, platform.y + 5, 
+                                platform.width - 10, platform.height - 10);
+                }
+            } else if (platform.type === 'toxic') {
+                ctx.fillStyle = '#006400';
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Toxic effect
+                ctx.fillStyle = '#00FF00';
+                for (let i = 0; i < platform.width/10; i++) {
+                    if ((i + Math.floor(Date.now()/200)) % 3 === 0) {
+                        ctx.fillRect(platform.x + i*10, platform.y, 5, 5);
                     }
-                    
-                    drawPixelTree(treeX, treeY, element.width, element.height);
                 }
-                if (element.type === 'bush') {
-                    drawPixelBush(drawX, drawY, element.width, element.height);
-                }
-                if (element.type === 'log') {
-                    drawPixelLog(drawX, drawY, element.width, element.height);
-                }
-            }
-        }
-        
-        if (config.theme === 'night' || config.theme === 'magic') {
-            for (let element of backgroundElements.filter(e => e.type === 'star')) {
-                const starX = element.x;
-                const starY = element.y;
+            } else if (platform.type === 'lava') {
+                ctx.fillStyle = '#8B0000';
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
                 
-                if (starX > gameState.camera.x && starX < gameState.camera.x + canvas.width &&
-                    starY > gameState.camera.y && starY < gameState.camera.y + canvas.height) {
-                    
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.globalAlpha = 0.5 + Math.sin(Date.now()/1000 + element.twinkle) * 0.5;
-                    ctx.fillRect(starX, starY, 2, 2);
-                    ctx.fillRect(starX + 2, starY + 2, 2, 2);
-                    ctx.fillRect(starX, starY + 4, 2, 2);
-                    ctx.globalAlpha = 1;
+                // Lava effect
+                ctx.fillStyle = '#FF4500';
+                const lavaTime = Date.now() / 300;
+                for (let i = 0; i < platform.width/15; i++) {
+                    const wave = Math.sin(lavaTime + i * 0.5) * 0.5 + 0.5;
+                    ctx.fillRect(platform.x + i*15, platform.y + wave * 10, 10, 5);
+                }
+            } else if (platform.type === 'floating') {
+                ctx.fillStyle = '#9370DB';
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Magic glow
+                const glow = Math.sin(Date.now()/500) * 0.2 + 0.8;
+                ctx.fillStyle = `rgba(147, 112, 219, ${glow})`;
+                ctx.fillRect(platform.x - 2, platform.y - 2, 
+                            platform.width + 4, platform.height + 4);
+            } else {
+                ctx.fillStyle = platform.color || '#8B4513';
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                if (platform.type === 'moving') {
+                    // Moving platform indicator
+                    ctx.fillStyle = '#4169E1';
+                    ctx.fillRect(platform.x + 5, platform.y + 5, 10, 10);
                 }
             }
-        }
-    }
-    
-    function drawPlayer() {
-        // Bayangan
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.beginPath();
-        ctx.ellipse(player.x + player.width/2, player.y + player.height + 5, 
-                    player.width/2, player.height/6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        const centerX = player.x + player.width/2;
-        const centerY = player.y + player.height/2;
-        const radius = player.width/2;
-        
-        const ballColor = player.invincible && Math.floor(Date.now()/100) % 2 === 0 ? 
-                         '#FF0000' : '#FFFFFF';
-        
-        ctx.fillStyle = ballColor;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = ballColor === '#FFFFFF' ? '#F0F0F0' : '#CC0000';
-        const pixelSize = 3;
-        for (let i = 0; i < 360; i += 45) {
-            const angle = i * Math.PI / 180;
-            const px = centerX + Math.cos(angle) * (radius - pixelSize/2);
-            const py = centerY + Math.sin(angle) * (radius - pixelSize/2);
-            ctx.fillRect(px - pixelSize/2, py - pixelSize/2, pixelSize, pixelSize);
-        }
-        
-        ctx.fillStyle = '#000000';
-        const eyeOffset = player.facingRight ? radius/3 : -radius/3;
-        const eyeSize = radius/4;
-        
-        ctx.beginPath();
-        ctx.arc(centerX + eyeOffset, centerY - radius/4, eyeSize, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.beginPath();
-        ctx.arc(centerX + eyeOffset, centerY + radius/4, eyeSize, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(centerX + eyeOffset/2, centerY, radius/3, 0.2 * Math.PI, 0.8 * Math.PI);
-        ctx.stroke();
-        
-        // Draw jump booster effect
-        if (player.jumpBoosterActive) {
-            const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-            ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
-            ctx.lineWidth = 4;
-            ctx.globalAlpha = 0.7;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius + 10, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
             
-            // Draw booster particles
-            const particleCount = 3;
-            for (let i = 0; i < particleCount; i++) {
-                const angle = (Date.now() / 100 + i * Math.PI * 2 / particleCount) % (Math.PI * 2);
-                const px = centerX + Math.cos(angle) * (radius + 15);
-                const py = centerY + Math.sin(angle) * (radius + 15);
-                
-                ctx.fillStyle = '#00FFFF';
-                ctx.globalAlpha = 0.8;
-                ctx.beginPath();
-                ctx.arc(px, py, 3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1;
-            }
-        }
-        
-        if (player.hasShield) {
-            ctx.strokeStyle = '#0000FF';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius + 8, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            const shieldWidth = 50;
-            const shieldProgress = player.shieldTime / 10;
-            ctx.fillStyle = '#0000FF';
-            ctx.fillRect(canvas.width/2 - shieldWidth/2, 10, shieldWidth * shieldProgress, 5);
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.strokeRect(canvas.width/2 - shieldWidth/2, 10, shieldWidth, 5);
-        }
-        
-        if (player.hasBoomerang) {
-            ctx.fillStyle = '#4169E1';
-            ctx.fillRect(player.x + player.width/2 - 5, player.y - 15, 10, 10);
-        }
-        
-        if (player.isPoisoned) {
-            ctx.strokeStyle = '#00FF00';
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.7;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius + 4, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-        }
-        
-        if (player.isBurning) {
-            ctx.strokeStyle = '#FF4500';
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.7;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius + 6, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-        }
-    }
-    
-    function drawEnemies() {
-        for (let enemy of enemies) {
-            if (enemy.isBoss) {
-                const barWidth = 100;
-                const healthPercent = enemy.health / enemy.maxHealth;
-                
-                ctx.fillStyle = '#FF0000';
-                ctx.fillRect(enemy.x + enemy.width/2 - barWidth/2, enemy.y - 20, barWidth, 8);
-                ctx.fillStyle = '#00FF00';
-                ctx.fillRect(enemy.x + enemy.width/2 - barWidth/2, enemy.y - 20, barWidth * healthPercent, 8);
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(enemy.x + enemy.width/2 - barWidth/2, enemy.y - 20, barWidth, 8);
-            }
-            
-            ctx.fillStyle = enemy.color;
-            if (enemy.type === 'ghost') {
-                ctx.globalAlpha = enemy.transparency;
-            }
-            
-            ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-            
-            switch(enemy.type) {
-                case 'robot_basic':
-                case 'robot_fast':
-                case 'robot_shooter':
-                case 'robot_strong':
-                case 'robot_toxic':
-                case 'boss_robot':
-                    ctx.fillStyle = '#FFFF00';
-                    ctx.fillRect(enemy.x + 10, enemy.y + 10, 8, 8);
-                    ctx.fillRect(enemy.x + enemy.width - 18, enemy.y + 10, 8, 8);
-                    break;
-                    
-                case 'snake':
-                case 'snake_venom':
-                    ctx.fillStyle = '#FF0000';
-                    ctx.beginPath();
-                    ctx.moveTo(enemy.x + enemy.width/2, enemy.y + enemy.height);
-                    ctx.lineTo(enemy.x + enemy.width/2 + enemy.direction * 10, enemy.y + enemy.height + 10);
-                    ctx.stroke();
-                    break;
-                    
-                case 'dragon':
-                case 'boss_dragon':
-                case 'fire_dragon':
-                    ctx.fillStyle = '#8B4513';
-                    ctx.beginPath();
-                    ctx.moveTo(enemy.x, enemy.y + 20);
-                    ctx.lineTo(enemy.x - 30, enemy.y + 10);
-                    ctx.lineTo(enemy.x - 20, enemy.y + 40);
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(enemy.x + enemy.width, enemy.y + 20);
-                    ctx.lineTo(enemy.x + enemy.width + 30, enemy.y + 10);
-                    ctx.lineTo(enemy.x + enemy.width + 20, enemy.y + 40);
-                    ctx.closePath();
-                    ctx.fill();
-                    break;
-            }
-            
-            ctx.globalAlpha = 1;
-            
-            if (enemy.maxHealth > 1 && !enemy.isBoss) {
-                const healthPercent = enemy.health / enemy.maxHealth;
-                ctx.fillStyle = '#FF0000';
-                ctx.fillRect(enemy.x, enemy.y - 10, enemy.width, 4);
-                ctx.fillStyle = '#00FF00';
-                ctx.fillRect(enemy.x, enemy.y - 10, enemy.width * healthPercent, 4);
-            }
+            // Platform texture
+            drawPlatformTexture(platform.x, platform.y, platform.width, platform.height);
         }
     }
     
     function drawItems() {
         for (let item of items) {
-            ctx.save();
+            if (!isInViewport(item)) continue;
             
             switch(item.type) {
                 case 'coin':
-                    drawPixelCircle(item.x + item.width/2, item.y + item.height/2, item.width/2, 4, '#FFD700');
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fillRect(item.x, item.y, item.width, item.height);
+                    ctx.fillStyle = '#FFA500';
+                    ctx.fillRect(item.x + 5, item.y + 5, item.width - 10, item.height - 10);
                     break;
                     
                 case 'leaf':
@@ -4589,28 +5208,38 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                 case 'boomerang':
                     ctx.fillStyle = '#4169E1';
-                    ctx.translate(item.x + item.width/2, item.y + item.height/2);
-                    ctx.rotate(Date.now() / 500);
-                    ctx.fillRect(-item.width/2, -item.height/2, item.width, item.height);
+                    // Draw boomerang shape
+                    ctx.beginPath();
+                    ctx.moveTo(item.x, item.y + item.height/2);
+                    ctx.lineTo(item.x + item.width, item.y);
+                    ctx.lineTo(item.x + item.width, item.y + item.height);
+                    ctx.closePath();
+                    ctx.fill();
                     break;
                     
                 case 'shield':
                     ctx.fillStyle = '#0000FF';
-                    ctx.beginPath();
-                    ctx.arc(item.x + item.width/2, item.y + item.height/2, item.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#FFFFFF';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
+                    ctx.fillRect(item.x, item.y, item.width, item.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(item.x + 5, item.y + 5, item.width - 10, item.height - 10);
                     break;
                     
                 case 'star':
-                    ctx.fillStyle = '#FF4500';
+                    ctx.fillStyle = '#FFD700';
+                    // Draw star shape
+                    const centerX = item.x + item.width/2;
+                    const centerY = item.y + item.height/2;
+                    const spikes = 5;
+                    const outerRadius = item.width/2;
+                    const innerRadius = outerRadius/2;
+                    
                     ctx.beginPath();
-                    for (let i = 0; i < 5; i++) {
-                        const angle = (i * Math.PI * 2) / 5 - Math.PI/2;
-                        const x = item.x + item.width/2 + Math.cos(angle) * item.width/2;
-                        const y = item.y + item.height/2 + Math.sin(angle) * item.height/2;
+                    for (let i = 0; i < spikes * 2; i++) {
+                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                        const angle = (i * Math.PI) / spikes;
+                        const x = centerX + Math.cos(angle) * radius;
+                        const y = centerY + Math.sin(angle) * radius;
+                        
                         if (i === 0) ctx.moveTo(x, y);
                         else ctx.lineTo(x, y);
                     }
@@ -4618,1070 +5247,554 @@ document.addEventListener('DOMContentLoaded', function() {
                     ctx.fill();
                     break;
             }
+        }
+    }
+    
+    function drawEnemies() {
+        for (let enemy of enemies) {
+            if (!isInViewport(enemy)) continue;
             
-            ctx.restore();
+            // Draw enemy based on type
+            ctx.fillStyle = enemy.color;
+            
+            switch(enemy.type) {
+                case 'robot':
+                case 'robot_basic':
+                case 'robot_fast':
+                case 'robot_shooter':
+                case 'robot_strong':
+                case 'robot_toxic':
+                    // Draw robot body
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                    
+                    // Draw robot eyes
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(enemy.x + 10, enemy.y + 10, 5, 5);
+                    ctx.fillRect(enemy.x + enemy.width - 15, enemy.y + 10, 5, 5);
+                    
+                    // Special effects based on type
+                    if (enemy.subtype === 'toxic') {
+                        ctx.fillStyle = '#00FF00';
+                        ctx.fillRect(enemy.x + enemy.width/2 - 5, enemy.y + enemy.height - 10, 10, 5);
+                    } else if (enemy.subtype === 'shooter') {
+                        ctx.fillStyle = '#4169E1';
+                        ctx.fillRect(enemy.x + enemy.width/2 - 3, enemy.y, 6, 10);
+                    }
+                    break;
+                    
+                case 'snake':
+                case 'snake_venom':
+                    // Draw snake body
+                    ctx.fillRect(enemy.x, enemy.y + enemy.height/3, enemy.width, enemy.height/3);
+                    
+                    // Draw snake head
+                    ctx.fillRect(enemy.x + enemy.width - 15, enemy.y, 15, enemy.height);
+                    
+                    if (enemy.venomous) {
+                        ctx.fillStyle = '#00FF00';
+                        ctx.fillRect(enemy.x + enemy.width - 5, enemy.y + enemy.height/2 - 2, 5, 4);
+                    }
+                    break;
+                    
+                case 'spider':
+                case 'spider_web':
+                    // Draw spider body
+                    ctx.fillRect(enemy.x + 5, enemy.y + 5, enemy.width - 10, enemy.height - 10);
+                    
+                    // Draw spider legs
+                    for (let i = 0; i < 4; i++) {
+                        ctx.fillRect(enemy.x, enemy.y + 5 + i*5, 5, 2);
+                        ctx.fillRect(enemy.x + enemy.width - 5, enemy.y + 5 + i*5, 5, 2);
+                    }
+                    break;
+                    
+                case 'bat':
+                    // Draw bat wings
+                    ctx.fillStyle = enemy.color;
+                    ctx.beginPath();
+                    ctx.ellipse(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 
+                               enemy.width/2, enemy.height/2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Draw bat body
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(enemy.x + enemy.width/2 - 3, enemy.y + enemy.height/2 - 3, 6, 6);
+                    break;
+                    
+                case 'ghost':
+                    ctx.globalAlpha = enemy.transparency || 0.7;
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                    
+                    // Ghost eyes
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(enemy.x + 10, enemy.y + 15, 5, 5);
+                    ctx.fillRect(enemy.x + enemy.width - 15, enemy.y + 15, 5, 5);
+                    
+                    ctx.globalAlpha = 1.0;
+                    break;
+                    
+                case 'slime':
+                    // Draw slime body (rounded)
+                    ctx.beginPath();
+                    ctx.ellipse(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 
+                               enemy.width/2, enemy.height/2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Slime eyes
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(enemy.x + enemy.width/3, enemy.y + enemy.height/3, 3, 3);
+                    ctx.fillRect(enemy.x + 2*enemy.width/3 - 3, enemy.y + enemy.height/3, 3, 3);
+                    break;
+                    
+                case 'boss_dragon':
+                    // Draw dragon body
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                    
+                    // Dragon wings
+                    ctx.fillStyle = '#8B0000';
+                    ctx.beginPath();
+                    ctx.moveTo(enemy.x + enemy.width/2, enemy.y + 20);
+                    ctx.lineTo(enemy.x, enemy.y - 30);
+                    ctx.lineTo(enemy.x + enemy.width/2, enemy.y + 20);
+                    ctx.lineTo(enemy.x + enemy.width, enemy.y - 30);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Dragon fire breath indicator
+                    if (enemy.attackCooldown < 1) {
+                        ctx.fillStyle = '#FF4500';
+                        ctx.fillRect(enemy.x + enemy.width, enemy.y + 30, 20, 10);
+                    }
+                    break;
+                    
+                default:
+                    // Default rectangle for other enemies
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                    
+                    // Draw eyes for default enemies
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(enemy.x + 5, enemy.y + 5, 3, 3);
+                    ctx.fillRect(enemy.x + enemy.width - 8, enemy.y + 5, 3, 3);
+                    break;
+            }
+            
+            // Health bar for enemies with more than 1 health
+            if (enemy.maxHealth > 1) {
+                const healthPercent = enemy.health / enemy.maxHealth;
+                const barWidth = enemy.width;
+                const barHeight = 5;
+                
+                // Background
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(enemy.x, enemy.y - 10, barWidth, barHeight);
+                
+                // Health
+                if (healthPercent > 0.6) ctx.fillStyle = '#00FF00';
+                else if (healthPercent > 0.3) ctx.fillStyle = '#FFFF00';
+                else ctx.fillStyle = '#FF0000';
+                
+                ctx.fillRect(enemy.x, enemy.y - 10, barWidth * healthPercent, barHeight);
+                
+                // Boss indicator
+                if (enemy.isBoss) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('BOSS', enemy.x + enemy.width/2 - 15, enemy.y - 15);
+                }
+            }
         }
     }
     
     function drawProjectiles() {
         for (let proj of projectiles) {
-            ctx.save();
+            if (!isInViewport(proj)) continue;
+            
+            ctx.fillStyle = proj.color;
             
             if (proj.type === 'boomerang') {
-                ctx.fillStyle = proj.color;
-                ctx.translate(proj.x + proj.width/2, proj.y + proj.height/2);
-                ctx.rotate(Date.now() / 100);
+                // Rotating boomerang
+                ctx.save();
+                const centerX = proj.x + proj.width/2;
+                const centerY = proj.y + proj.height/2;
+                ctx.translate(centerX, centerY);
+                ctx.rotate(Date.now() / 200);
                 ctx.fillRect(-proj.width/2, -proj.height/2, proj.width, proj.height);
+                ctx.restore();
             } else {
-                ctx.fillStyle = proj.color;
                 ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
             }
-            
-            ctx.restore();
         }
     }
     
     function drawEnemyProjectiles() {
         for (let proj of enemyProjectiles) {
-            ctx.save();
+            if (!isInViewport(proj)) continue;
             
-            switch(proj.type) {
-                case 'fireball':
-                    ctx.fillStyle = '#FF4500';
-                    ctx.beginPath();
-                    ctx.arc(proj.x + proj.width/2, proj.y + proj.height/2, proj.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    break;
-                    
-                case 'laser':
-                    ctx.fillStyle = proj.color;
-                    ctx.globalAlpha = 0.7;
-                    ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
-                    break;
-                    
-                case 'web':
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.globalAlpha = 0.8;
-                    ctx.beginPath();
-                    ctx.arc(proj.x + proj.width/2, proj.y + proj.height/2, proj.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    break;
-                    
-                case 'snowball':
-                    ctx.fillStyle = '#F0F8FF';
-                    ctx.beginPath();
-                    ctx.arc(proj.x + proj.width/2, proj.y + proj.height/2, proj.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    break;
-                    
-                case 'spell':
-                    ctx.fillStyle = proj.color;
-                    ctx.beginPath();
-                    ctx.arc(proj.x + proj.width/2, proj.y + proj.height/2, proj.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    break;
-                    
-                case 'meteor':
-                    ctx.fillStyle = '#FF0000';
-                    ctx.beginPath();
-                    ctx.arc(proj.x + proj.width/2, proj.y + proj.height/2, proj.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    for (let i = 0; i < 5; i++) {
-                        ctx.beginPath();
-                        ctx.arc(proj.x + proj.width/2, proj.y + proj.height/2 + 10 + i*5, 
-                               (proj.width/2) * (1 - i/5), 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    break;
-                    
-                default:
-                    ctx.fillStyle = proj.color;
-                    ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
-            }
-            
-            ctx.restore();
+            ctx.fillStyle = proj.color;
+            ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
         }
     }
     
     function drawParticles() {
         for (let particle of particles) {
-            ctx.save();
+            if (!isInViewport(particle)) continue;
+            
             ctx.globalAlpha = particle.alpha;
             ctx.fillStyle = particle.color;
-            ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+            ctx.globalAlpha = 1.0;
         }
     }
     
-    function drawPlatforms() {
-        for (let platform of platforms) {
-            if (platform.type === 'disappearing' && !platform.visible) continue;
+    function drawPlayer() {
+        if (player.invincible) {
+            const blink = Math.floor(Date.now() / 100) % 2 === 0;
+            if (!blink) return;
+        }
+        
+        // Draw player body
+        ctx.fillStyle = player.hasShield ? '#4169E1' : '#FFD700';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+        
+        // Draw player face
+        ctx.fillStyle = '#000000';
+        
+        // Eyes
+        const eyeY = player.y + player.height/3;
+        if (player.facingRight) {
+            ctx.fillRect(player.x + player.width/3, eyeY, 4, 4);
+            ctx.fillRect(player.x + 2*player.width/3 - 4, eyeY, 4, 4);
+        } else {
+            ctx.fillRect(player.x + player.width/3 - 4, eyeY, 4, 4);
+            ctx.fillRect(player.x + 2*player.width/3, eyeY, 4, 4);
+        }
+        
+        // Mouth
+        const mouthY = player.y + 2*player.height/3;
+        if (player.isJumping) {
+            // Surprised mouth when jumping
+            ctx.fillRect(player.x + player.width/2 - 3, mouthY, 6, 2);
+        } else {
+            // Smile when on ground
+            ctx.beginPath();
+            ctx.arc(player.x + player.width/2, mouthY, 5, 0, Math.PI, false);
+            ctx.fill();
+        }
+        
+        // Shield effect
+        if (player.hasShield) {
+            ctx.strokeStyle = '#4169E1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x + player.width/2, player.y + player.height/2, 
+                   player.width/2 + 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        // Attack effect
+        if (player.isAttacking) {
+            const attackWidth = 40;
+            const attackHeight = 30;
+            const attackX = player.facingRight ? 
+                player.x + player.width : 
+                player.x - attackWidth;
+            const attackY = player.y + player.height/2 - attackHeight/2;
             
-            let platformColor = platform.color || '#228B22';
+            const attackInfo = player.attackTypes[player.currentAttackType];
+            ctx.fillStyle = attackInfo.color;
+            ctx.globalAlpha = 0.7;
+            ctx.fillRect(attackX, attackY, attackWidth, attackHeight);
+            ctx.globalAlpha = 1.0;
             
-            switch(platform.type) {
-                case 'moving':
-                    platformColor = '#FF9800';
-                    break;
-                case 'disappearing':
-                    platformColor = platform.visible ? '#9C27B0' : 'rgba(156, 39, 176, 0.3)';
-                    break;
-                case 'toxic':
-                    const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-                    const toxicGradient = ctx.createLinearGradient(
-                        platform.x, platform.y,
-                        platform.x, platform.y + platform.height
-                    );
-                    toxicGradient.addColorStop(0, `rgba(50, 205, 50, ${pulse})`);
-                                       toxicGradient.addColorStop(1, `rgba(30, 180, 30, ${pulse})`);
-                    platformColor = toxicGradient;
-                    break;
-                case 'lava':
-                    const lavaGradient = ctx.createLinearGradient(
-                        platform.x, platform.y,
-                        platform.x, platform.y + platform.height
-                    );
-                    lavaGradient.addColorStop(0, '#FF4500');
-                    lavaGradient.addColorStop(0.5, '#FF8C00');
-                    lavaGradient.addColorStop(1, '#FFD700');
-                    platformColor = lavaGradient;
-                    break;
-                case 'floating':
-                    platformColor = '#4169E1';
-                    break;
+            // Elemental effect
+            if (player.attackElement) {
+                ctx.fillStyle = player.attackElement === 'fire' ? '#FF0000' :
+                               player.attackElement === 'ice' ? '#00FFFF' :
+                               player.attackElement === 'electric' ? '#FFFF00' : '#FFFFFF';
+                ctx.globalAlpha = 0.5;
+                ctx.fillRect(attackX, attackY, attackWidth, attackHeight);
+                ctx.globalAlpha = 1.0;
             }
-            
-            if (platform.texture === 'grass') {
-                drawGrassTexture(platform.x, platform.y, platform.width, platform.height);
-            } else {
-                ctx.fillStyle = platformColor;
-                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-                
-                if (platform.type === 'disappearing' && platform.visible) {
-                    const timerWidth = (1 - (platform.timer / 2)) * platform.width;
-                    ctx.fillStyle = '#9C27B0';
-                    ctx.fillRect(platform.x, platform.y - 5, timerWidth, 3);
-                }
-            }
+        }
+        
+        // Jump booster effect
+        if (player.jumpBoosterActive) {
+            ctx.strokeStyle = '#00FFFF';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(player.x + player.width/2, player.y + player.height/2, 
+                   player.width/2 + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
         }
     }
     
     function drawFlag() {
-        if (!flag.collected) {
-            ctx.fillStyle = '#FF0000';
-            ctx.fillRect(flag.x, flag.y, flag.width, flag.height);
-            
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(flag.x, flag.y, flag.width, 10);
-            
-            const flagPoleY = flag.y + flag.height;
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(flag.x + flag.width/2 - 3, flag.y + flag.height, 6, 40);
-            
-            if (isFlagVisible()) {
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('🚩 Finish', flag.x + flag.width/2, flag.y - 10);
-            }
-        }
+        if (flag.collected || !isInViewport(flag)) return;
+        
+        // Flag pole
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(flag.x, flag.y, 5, flag.height);
+        
+        // Flag
+        ctx.fillStyle = '#FF0000';
+        ctx.beginPath();
+        ctx.moveTo(flag.x + 5, flag.y);
+        ctx.lineTo(flag.x + flag.width, flag.y + flag.height/3);
+        ctx.lineTo(flag.x + 5, flag.y + 2*flag.height/3);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Flag animation
+        const wave = Math.sin(Date.now() / 300) * 3;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(flag.x + flag.width/2 + wave, flag.y + flag.height/6, 3, 3);
     }
     
     function drawUI() {
-        // Draw HUD background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, canvas.width, 40);
+        // Mini map
+        drawMiniMap();
         
-        // Draw lives
-        ctx.fillStyle = '#FF5252';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText('❤️', 15, 25);
-        ctx.fillText(`x${gameState.lives}`, 35, 25);
+        // Status bars
+        drawStatusBars();
         
-        // Draw score
-        ctx.fillStyle = '#FFD700';
-        ctx.fillText(`💰 ${gameState.score}`, 90, 25);
+        // Game info
+        drawGameInfo();
         
-        // Draw level info
-        ctx.fillStyle = '#4CAF50';
-        ctx.fillText(`🏆 Level ${gameState.currentLevel}`, 200, 25);
+        // Pause indicator
+        if (gameState.paused) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('PAUSE', canvas.width / 2, canvas.height / 2);
+            
+            ctx.font = '24px Arial';
+            ctx.fillText('Tekan ESC untuk melanjutkan', canvas.width / 2, canvas.height / 2 + 50);
+        }
         
-        // Draw time
-        const minutes = Math.floor(gameState.timeLeft / 60);
-        const seconds = Math.floor(gameState.timeLeft % 60);
-        ctx.fillStyle = gameState.timeLeft < 60 ? '#FF5252' : '#2196F3';
-        ctx.fillText(`⏱️ ${minutes}:${seconds.toString().padStart(2, '0')}`, 320, 25);
-        
-        // Draw booster info
-        if (player.jumpBoosterActive) {
-            ctx.fillStyle = '#00FFFF';
-            ctx.fillText('🚀 BOOSTER ACTIVE!', 450, 25);
+        // Game over screen
+        if (gameState.gameOver) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#FF0000';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 50);
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '24px Arial';
+            ctx.fillText(`Skor Akhir: ${gameState.score}`, canvas.width / 2, canvas.height / 2);
+            ctx.fillText(`Level: ${gameState.currentLevel}`, canvas.width / 2, canvas.height / 2 + 40);
+            ctx.fillText('Klik "Ulangi" untuk mencoba lagi', canvas.width / 2, canvas.height / 2 + 90);
         }
     }
     
-    function drawGameOverScreen() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    function drawMiniMap() {
+        const mapWidth = 150;
+        const mapHeight = 100;
+        const mapX = 10;
+        const mapY = 10;
         
-        ctx.fillStyle = '#FF5252';
-        ctx.font = 'bold 48px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('GAME OVER', canvas.width/2, canvas.height/3);
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(mapX, mapY, mapWidth, mapHeight);
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.strokeRect(mapX, mapY, mapWidth, mapHeight);
+        
+        // Level boundaries
+        const levelWidth = platforms[0].width;
+        const scale = mapWidth / levelWidth;
+        
+        // Platforms
+        ctx.fillStyle = '#4CAF50';
+        for (let platform of platforms) {
+            const platformX = mapX + platform.x * scale;
+            const platformWidth = platform.width * scale;
+            const platformHeight = 3;
+            const platformY = mapY + mapHeight - platformHeight;
+            
+            ctx.fillRect(platformX, platformY, platformWidth, platformHeight);
+        }
+        
+        // Player position
+        ctx.fillStyle = '#FFD700';
+        const playerX = mapX + player.x * scale;
+        const playerY = mapY + mapHeight - 10;
+        ctx.fillRect(playerX - 2, playerY - 2, 4, 4);
+        
+        // Flag position
+        if (!flag.collected) {
+            ctx.fillStyle = '#FF0000';
+            const flagX = mapX + flag.x * scale;
+            const flagY = mapY + mapHeight - 10;
+            ctx.fillRect(flagX - 2, flagY - 2, 4, 4);
+        }
+        
+        // Camera view
+        ctx.strokeStyle = '#00FFFF';
+        ctx.lineWidth = 1;
+        const cameraX = mapX + gameState.camera.x * scale;
+        const cameraWidth = gameState.camera.width * scale;
+        const cameraHeight = mapHeight;
+        ctx.strokeRect(cameraX, mapY, cameraWidth, cameraHeight);
+    }
+    
+    function drawStatusBars() {
+        const barX = canvas.width - 160;
+        const barY = 10;
+        const barWidth = 150;
+        const barHeight = 15;
+        
+        // Time bar
+        const timePercent = gameState.timeLeft / levelConfigs[gameState.currentLevel].time;
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = timePercent > 0.3 ? '#4CAF50' : '#FF5252';
+        ctx.fillRect(barX, barY, barWidth * timePercent, barHeight);
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
         
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '24px Arial';
-        ctx.fillText(`Skor Akhir: ${gameState.score}`, canvas.width/2, canvas.height/2);
-        ctx.fillText(`Level yang dicapai: ${gameState.currentLevel}`, canvas.width/2, canvas.height/2 + 40);
-        
-        ctx.fillStyle = '#FFD700';
-        ctx.font = '20px Arial';
-        ctx.fillText('Tekan tombol "Mulai Game" untuk bermain lagi', canvas.width/2, canvas.height/2 + 100);
-        
-        // Show booster reset message
-        ctx.fillStyle = '#00FFFF';
-        ctx.font = '16px Arial';
-        ctx.fillText('🚀 Jump Booster telah direset ke 3 charges untuk permainan baru!', canvas.width/2, canvas.height/2 + 140);
-    }
-    
-    function drawWinScreen() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = '#4CAF50';
-        ctx.font = 'bold 48px Arial';
+        ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('LEVEL SELESAI!', canvas.width/2, canvas.height/3);
+        ctx.fillText(`Time: ${Math.floor(gameState.timeLeft)}s`, barX + barWidth/2, barY + barHeight/2);
+        
+        // Lives indicator
+        const livesX = barX;
+        const livesY = barY + 30;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Lives: ${gameState.lives}`, livesX, livesY);
+        
+        // Draw hearts
+        for (let i = 0; i < gameState.lives; i++) {
+            ctx.fillStyle = '#FF5252';
+            ctx.fillRect(livesX + 60 + i * 12, livesY - 10, 10, 10);
+        }
+    }
+    
+    function drawGameInfo() {
+        const infoX = 10;
+        const infoY = canvas.height - 80;
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(infoX, infoY, 200, 70);
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.strokeRect(infoX, infoY, 200, 70);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+        
+        ctx.fillText(`Level: ${gameState.currentLevel}/${gameState.maxLevel}`, infoX + 10, infoY + 20);
+        ctx.fillText(`Score: ${gameState.score}`, infoX + 10, infoY + 40);
+        ctx.fillText(`Combo: ${player.comboCount}`, infoX + 10, infoY + 60);
+        
+        // Elemental attack indicator
+        if (player.hasElementalAttack) {
+            ctx.fillStyle = player.attackElement === 'fire' ? '#FF0000' :
+                           player.attackElement === 'ice' ? '#00FFFF' :
+                           player.attackElement === 'electric' ? '#FFFF00' : '#FFFFFF';
+            ctx.fillRect(infoX + 180, infoY + 10, 10, 10);
+        }
+    }
+    
+    function drawComboCounter() {
+        const comboX = canvas.width / 2;
+        const comboY = 50;
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(comboX - 50, comboY - 25, 100, 50);
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(comboX - 50, comboY - 25, 100, 50);
         
         ctx.fillStyle = '#FFD700';
-        ctx.font = '24px Arial';
-        ctx.fillText(`Skor: ${gameState.score}`, canvas.width/2, canvas.height/2);
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`COMBO x${player.comboCount}`, comboX, comboY);
         
-        if (gameState.currentLevel < gameState.maxLevel) {
-            ctx.fillStyle = '#2196F3';
-            ctx.fillText(`🎉 Level ${gameState.currentLevel + 1} terkunci!`, canvas.width/2, canvas.height/2 + 40);
-        } else {
-            ctx.fillStyle = '#FFD700';
-            ctx.fillText('🎮 SELAMAT! Anda menyelesaikan semua level!', canvas.width/2, canvas.height/2 + 40);
-        }
-        
-        // Show booster carry-over message
-        ctx.fillStyle = '#00FFFF';
-        ctx.font = '18px Arial';
-        ctx.fillText(`🚀 Jump Booster: ${player.jumpBoosterChargesThisLife} charges dibawa ke level berikutnya`, 
-                     canvas.width/2, canvas.height/2 + 100);
-    }
-    
-    function isInViewport(object) {
-        return object.x + object.width > gameState.camera.x && 
-               object.x < gameState.camera.x + gameState.camera.width &&
-               object.y + object.height > gameState.camera.y && 
-               object.y < gameState.camera.y + gameState.camera.height;
-    }
-    
-    // ========== FULLSCREEN FUNCTIONALITY ==========
-    function setupFullscreenToggle() {
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
-        if (fullscreenBtn) {
-            fullscreenBtn.addEventListener('click', toggleFullscreen);
-        }
-        
-        // Mobile fullscreen button
-        const mobileFullscreenBtn = document.getElementById('mobileFullscreenBtn');
-        if (mobileFullscreenBtn) {
-            mobileFullscreenBtn.addEventListener('click', toggleFullscreen);
+        // Combo timer indicator
+        const timeSinceLastAttack = Date.now() / 1000 - player.lastAttackTime;
+        const comboTimeLeft = player.comboWindow - timeSinceLastAttack;
+        if (comboTimeLeft > 0) {
+            const barWidth = 80;
+            const barHeight = 5;
+            const barX = comboX - barWidth/2;
+            const barY = comboY + 20;
+            
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(barX, barY, barWidth * (comboTimeLeft / player.comboWindow), barHeight);
         }
     }
     
-    function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            if (canvas.requestFullscreen) {
-                canvas.requestFullscreen();
-            } else if (canvas.webkitRequestFullscreen) {
-                canvas.webkitRequestFullscreen();
-            } else if (canvas.msRequestFullscreen) {
-                canvas.msRequestFullscreen();
-            }
-            
-            // Resize canvas untuk memanfaatkan layar penuh
-            resizeCanvasForFullscreen();
-            
-            console.log("🖥️ Entered fullscreen mode");
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
-            }
-            
-            // Reset canvas size
-            resetCanvasSize();
-            
-            console.log("📱 Exited fullscreen mode");
+    function drawElementalIndicator() {
+        const elementX = canvas.width - 50;
+        const elementY = 50;
+        const size = 30;
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(elementX - size/2, elementY - size/2, size, size);
+        
+        ctx.fillStyle = player.attackElement === 'fire' ? '#FF0000' :
+                       player.attackElement === 'ice' ? '#00FFFF' :
+                       player.attackElement === 'electric' ? '#FFFF00' : '#FFFFFF';
+        ctx.fillRect(elementX - size/2 + 5, elementY - size/2 + 5, size - 10, size - 10);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(player.attackElement.toUpperCase(), elementX, elementY + size/2 + 10);
+    }
+    
+    function drawStatusEffects() {
+        const effectsX = canvas.width - 50;
+        const effectsY = 100;
+        const effectSize = 20;
+        
+        let effectCount = 0;
+        
+        if (player.isPoisoned) {
+            ctx.fillStyle = '#00FF00';
+            ctx.fillRect(effectsX - effectSize/2, effectsY + effectCount * 25, effectSize, effectSize);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '8px Arial';
+            ctx.fillText('P', effectsX, effectsY + effectCount * 25 + effectSize/2 + 3);
+            effectCount++;
+        }
+        
+        if (player.isSlowed) {
+            ctx.fillStyle = '#4169E1';
+            ctx.fillRect(effectsX - effectSize/2, effectsY + effectCount * 25, effectSize, effectSize);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '8px Arial';
+            ctx.fillText('S', effectsX, effectsY + effectCount * 25 + effectSize/2 + 3);
+            effectCount++;
+        }
+        
+        if (player.isBurning) {
+            ctx.fillStyle = '#FF4500';
+            ctx.fillRect(effectsX - effectSize/2, effectsY + effectCount * 25, effectSize, effectSize);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '8px Arial';
+            ctx.fillText('B', effectsX, effectsY + effectCount * 25 + effectSize/2 + 3);
+            effectCount++;
         }
     }
     
-    function resizeCanvasForFullscreen() {
-        const container = document.getElementById('gameContainer');
-        if (!container) return;
-        
-        // Simpan ukuran asli
-        if (!canvas._originalWidth) {
-            canvas._originalWidth = canvas.width;
-            canvas._originalHeight = canvas.height;
-        }
-        
-        // Atur ukuran canvas ke ukuran container
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-        
-        // Update camera
-        gameState.camera.width = canvas.width;
-        gameState.camera.height = canvas.height;
-        
-        // Adjust player position
-        player.x = Math.min(player.x, canvas.width - player.width);
-        player.y = Math.min(player.y, canvas.height - player.height);
-        
-        console.log(`📐 Canvas resized for fullscreen: ${canvas.width}x${canvas.height}`);
-    }
-    
-    function resetCanvasSize() {
-        if (canvas._originalWidth) {
-            canvas.width = canvas._originalWidth;
-            canvas.height = canvas._originalHeight;
-            
-            gameState.camera.width = canvas.width;
-            gameState.camera.height = canvas.height;
-            
-            console.log(`📐 Canvas reset to original size: ${canvas.width}x${canvas.height}`);
-        }
-    }
-    
-    // ========== CONTROL STICK MOVEMENT ==========
-    function setupControlStickMovement() {
-        // Setup touch events for control stick
-        const controlStick = document.getElementById('controlStick');
-        const stickArea = document.querySelector('.stick-area');
-        
-        if (!controlStick || !stickArea) {
-            console.error("❌ Control stick elements not found!");
-            return;
-        }
-        
-        let touchId = null;
-        let isDragging = false;
-        let stickRadius = stickArea.clientWidth / 2;
-        let stickCenterX = stickRadius;
-        let stickCenterY = stickRadius;
-        
-        stickArea.addEventListener('touchstart', function(e) {
-            if (!gameState.running || gameState.paused) return;
-            
-            e.preventDefault();
-            touchId = e.touches[0].identifier;
-            isDragging = true;
-            controlStick.classList.add('active');
-            
-            // Center the stick on touch position
-            const rect = stickArea.getBoundingClientRect();
-            const touchX = e.touches[0].clientX - rect.left;
-            const touchY = e.touches[0].clientY - rect.top;
-            
-            updateControlStickPosition(touchX, touchY, stickRadius, controlStick, stickCenterX, stickCenterY);
-        });
-        
-        document.addEventListener('touchmove', function(e) {
-            if (!isDragging || !gameState.running || gameState.paused) return;
-            
-            e.preventDefault();
-            
-            // Find the correct touch
-            let touch = null;
-            for (let i = 0; i < e.touches.length; i++) {
-                if (e.touches[i].identifier === touchId) {
-                    touch = e.touches[i];
-                    break;
-                }
-            }
-            if (!touch) return;
-            
-            const rect = stickArea.getBoundingClientRect();
-            const touchX = touch.clientX - rect.left;
-            const touchY = touch.clientY - rect.top;
-            
-            updateControlStickPosition(touchX, touchY, stickRadius, controlStick, stickCenterX, stickCenterY);
-        });
-        
-        document.addEventListener('touchend', function(e) {
-            if (!isDragging) return;
-            
-            e.preventDefault();
-            isDragging = false;
-            touchId = null;
-            controlStick.classList.remove('active');
-            
-            // Reset stick position
-            controlStick.style.transform = 'translate(-50%, -50%)';
-            
-            // Reset movement
-            resetMovementFromControlStick();
-        });
-        
-        // Mouse controls for desktop testing
-        stickArea.addEventListener('mousedown', function(e) {
-            if (!gameState.running || gameState.paused) return;
-            
-            e.preventDefault();
-            isDragging = true;
-            controlStick.classList.add('active');
-            
-            const rect = stickArea.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            
-            updateControlStickPosition(mouseX, mouseY, stickRadius, controlStick, stickCenterX, stickCenterY);
-        });
-        
-        document.addEventListener('mousemove', function(e) {
-            if (!isDragging || !gameState.running || gameState.paused) return;
-            
-            e.preventDefault();
-            const rect = stickArea.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            
-            updateControlStickPosition(mouseX, mouseY, stickRadius, controlStick, stickCenterX, stickCenterY);
-        });
-        
-        document.addEventListener('mouseup', function() {
-            if (!isDragging) return;
-            
-            isDragging = false;
-            controlStick.classList.remove('active');
-            controlStick.style.transform = 'translate(-50%, -50%)';
-            
-            resetMovementFromControlStick();
-        });
-    }
-    
-    function updateControlStickPosition(inputX, inputY, radius, stickElement, centerX, centerY) {
-        // Calculate distance from center
-        const deltaX = inputX - centerX;
-        const deltaY = inputY - centerY;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        
-        // Limit to stick radius
-        const limitedDistance = Math.min(distance, radius - 20);
-        const angle = Math.atan2(deltaY, deltaX);
-        
-        const finalX = Math.cos(angle) * limitedDistance;
-        const finalY = Math.sin(angle) * limitedDistance;
-        
-        // Update stick position
-        stickElement.style.transform = `translate(${finalX}px, ${finalY}px)`;
-        
-        // Calculate normalized values (-1 to 1)
-        const normalizedX = finalX / (radius - 20);
-        const normalizedY = finalY / (radius - 20);
-        
-        // Update movement based on control stick
-        updateMovementFromControlStick(normalizedX, normalizedY);
-    }
-    
-    function updateMovementFromControlStick(x, y) {
-        const deadzone = 0.2;
-        
-        // Horizontal movement
-        if (Math.abs(x) > deadzone) {
-            keys['ArrowLeft'] = x < -deadzone;
-            keys['ArrowRight'] = x > deadzone;
-            
-            if (x < -deadzone) player.facingRight = false;
-            if (x > deadzone) player.facingRight = true;
-        } else {
-            keys['ArrowLeft'] = false;
-            keys['ArrowRight'] = false;
-        }
-        
-        // Vertical movement (jump)
-        if (y < -deadzone && !player.jumpRequested) {
-            keys['ArrowUp'] = true;
-            keys[' '] = true;
-            keys['x'] = true;
-            keys['X'] = true;
-            player.jumpRequested = true;
-            player.jumpBuffer = player.jumpBufferTime;
-        } else if (y >= -deadzone) {
-            keys['ArrowUp'] = false;
-            keys[' '] = false;
-            keys['x'] = false;
-            keys['X'] = false;
-            player.jumpRequested = false;
-        }
-        
-        // Down movement (fast fall)
-        keys['ArrowDown'] = y > deadzone;
-    }
-    
-    function resetMovementFromControlStick() {
-        keys['ArrowLeft'] = false;
-        keys['ArrowRight'] = false;
-        keys['ArrowUp'] = false;
-        keys[' '] = false;
-        keys['x'] = false;
-        keys['X'] = false;
-        keys['ArrowDown'] = false;
-        
-        // Reset jump request
-        player.jumpRequested = false;
-    }
-    
-    // ========== JUMP BOOSTER BUTTON HANDLING ==========
-    function setupJumpBoosterButtons() {
-        // Desktop button
-        const useBoosterBtn = document.getElementById('useBoosterBtn');
-        if (useBoosterBtn) {
-            useBoosterBtn.addEventListener('click', function() {
-                if (gameState.running && !gameState.paused) {
-                    useJumpBooster();
-                }
-            });
-        }
-        
-        // Mobile button
-        const jumpBoosterBtn = document.getElementById('jumpBoosterBtn');
-        if (jumpBoosterBtn) {
-            jumpBoosterBtn.addEventListener('click', function() {
-                if (gameState.running && !gameState.paused) {
-                    useJumpBooster();
-                }
-            });
-        }
-        
-        // Keyboard shortcut (B key)
-        document.addEventListener('keydown', function(e) {
-            if ((e.key === 'b' || e.key === 'B') && gameState.running && !gameState.paused) {
-                useJumpBooster();
-            }
-        });
-    }
-    
-    function useJumpBooster() {
-        // Check if player can use booster
-        if (player.jumpBoosterChargesThisLife <= 0) {
-            showJumpBoosterNotification("No jump boosters left for this life!", true);
-            return false;
-        }
-        
-        if (player.jumpBoosterActive) {
-            showJumpBoosterNotification("Jump booster already active!", true);
-            return false;
-        }
-        
-        // Activate booster
-        const success = player.useJumpBooster();
-        
-        if (success) {
-            console.log(`🚀 Jump Booster Activated! Charges left: ${player.jumpBoosterChargesThisLife}`);
-            
-            // Visual effects
-            createParticles(player.x + player.width/2, player.y + player.height/2, 
-                           30, '#00FFFF');
-            createParticles(player.x + player.width/2, player.y + player.height/2, 
-                           20, '#FF00FF');
-            
-            // Show notification
-            showJumpBoosterNotification(`Jump Booster Activated! (${player.jumpBoosterChargesThisLife} charges left)`);
-            
-            // If player is on ground, give immediate boost
-            if (player.onGround) {
-                player.velocityY = -player.jumpBoosterPower;
-                player.isJumping = true;
-                player.onGround = false;
-                player.doubleJumpUsed = false;
-                
-                createParticles(player.x + player.width/2, player.y + player.height/2, 
-                               40, '#00FFFF');
-                console.log("🚀 SUPER JUMP BOOSTER ACTIVATED!");
-            }
-            
-            return true;
-        }
-        
-        return false;
-    }
-    
-    // ========== AUTO LEVEL PROGRESSION ==========
-    function autoProgressToNextLevel() {
-        if (gameState.win && gameState.currentLevel < gameState.maxLevel) {
-            console.log(`🎯 Auto-progressing to level ${gameState.currentLevel + 1}`);
-            
-            // Keep current booster charges
-            const currentBoosterCharges = player.jumpBoosterChargesThisLife;
-            
-            // Setup next level
-            setupLevel(gameState.currentLevel + 1);
-            
-            // Restore booster charges
-            player.jumpBoosterChargesThisLife = currentBoosterCharges;
-            player.jumpBoosterCharges = currentBoosterCharges;
-            
-            // Auto-start next level
-            startGame();
-            
-            // Show notification
-            setTimeout(() => {
-                showJumpBoosterNotification(`Level ${gameState.currentLevel} started! (Carried over ${currentBoosterCharges} booster charges)`);
-            }, 500);
-        }
-    }
-    
-    // ========== ENHANCED JUMP BOOSTER SYSTEM ==========
-    function setupEnhancedJumpBooster() {
-        // Reset booster on player death
-        const originalTakeDamage = takeDamage;
-        takeDamage = function(damage, damageType, source) {
-            const result = originalTakeDamage.call(this, damage, damageType, source);
-            
-            // Check if player lost a life (damage was taken)
-            if (damage > 0 && gameState.lives > 0) {
-                console.log(`💀 Player took damage, resetting jump booster for new life`);
-                player.resetJumpBoosterForNewLife();
-                updateGameStats();
-            }
-            
-            return result;
-        };
-        
-        // Auto-progress to next level when flag is collected
-        const originalCheckWinCondition = checkWinCondition;
-        checkWinCondition = function() {
-            if (flag.collected && !gameState.win) {
-                winLevel();
-                
-                // Auto-progress after a delay
-                setTimeout(() => {
-                    autoProgressToNextLevel();
-                }, 2000);
-            }
-        };
-    }
-    
-    // ========== GAME INITIALIZATION ==========
-    function completeSetup() {
-        console.log("🎮 Completing game setup...");
-        
-        // Setup fullscreen functionality
-        setupFullscreenToggle();
-        
-        // Setup control stick movement
-        setupControlStickMovement();
-        
-        // Setup jump booster buttons
-        setupJumpBoosterButtons();
-        
-        // Setup enhanced jump booster system
-        setupEnhancedJumpBooster();
-        
-        // Initial setup
-        setupLevel(gameState.currentLevel);
-        drawStartScreen();
-        setupEventListeners();
-        updateGameStats();
-        updateLevelButtons();
-        
-        // Start animation loop
-        requestAnimationFrame(animate);
-        
-        console.log("✅ Game setup complete! All systems ready!");
-    }
-    
-    // ========== START GAME ==========
-    completeSetup();
+    // ========== START THE GAME ==========
+    init();
 });
-
-// ========== CSS STYLES FOR NEW ELEMENTS ==========
-const additionalStyles = `
-    /* Fullscreen button styling */
-    .fullscreen-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: #4CAF50;
-        color: white;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        z-index: 1000;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        transition: all 0.3s ease;
-    }
-    
-    .fullscreen-btn:hover {
-        background: #45a049;
-        transform: scale(1.1);
-    }
-    
-    /* Control stick styling */
-    .stick-area {
-        position: fixed;
-        bottom: 100px;
-        left: 100px;
-        width: 150px;
-        height: 150px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999;
-    }
-    
-    .control-stick {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.8);
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        transition: transform 0.1s ease;
-    }
-    
-    .control-stick.active {
-        background: rgba(255, 255, 255, 1);
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-    }
-    
-    /* Jump Booster button enhancements */
-    .booster-btn {
-        background: linear-gradient(135deg, #00FFFF, #0088FF);
-        color: white;
-        border: none;
-        padding: 12px 20px;
-        border-radius: 25px;
-        cursor: pointer;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 15px rgba(0, 136, 255, 0.4);
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .booster-btn:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0, 136, 255, 0.6);
-    }
-    
-    .booster-btn:active:not(:disabled) {
-        transform: translateY(1px);
-    }
-    
-    .booster-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    
-    .booster-btn::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
-        transform: rotate(45deg);
-        transition: all 0.5s ease;
-    }
-    
-    .booster-btn:hover:not(:disabled)::before {
-        transform: rotate(45deg) translate(50%, 50%);
-    }
-    
-    .booster-count {
-        background: rgba(0, 0, 0, 0.3);
-        padding: 4px 8px;
-        border-radius: 10px;
-        font-size: 14px;
-        min-width: 25px;
-        text-align: center;
-    }
-    
-    /* Level complete popup improvements */
-    .overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: none;
-        z-index: 2000;
-    }
-    
-    .overlay.show {
-        display: block;
-    }
-    
-    .level-complete-popup {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(0.9);
-        background: linear-gradient(135deg, #1a472a, #2a623d);
-        padding: 30px;
-        border-radius: 20px;
-        min-width: 400px;
-        max-width: 600px;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-        z-index: 2001;
-        opacity: 0;
-        transition: all 0.3s ease;
-        border: 3px solid #4CAF50;
-    }
-    
-    .level-complete-popup.show {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 1;
-    }
-    
-    .level-complete-popup h2 {
-        color: #FFD700;
-        margin-bottom: 20px;
-        text-align: center;
-        font-size: 28px;
-    }
-    
-    .level-complete-popup .stats {
-        background: rgba(0, 0, 0, 0.3);
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        font-size: 18px;
-        color: white;
-    }
-    
-    .level-complete-popup .stats div {
-        margin: 10px 0;
-        display: flex;
-        justify-content: space-between;
-    }
-    
-    .level-complete-popup .stats span {
-        color: #FFD700;
-        font-weight: bold;
-    }
-    
-    .popup-buttons {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    .popup-btn {
-        padding: 12px 24px;
-        border: none;
-        border-radius: 25px;
-        cursor: pointer;
-        font-weight: bold;
-        font-size: 16px;
-        transition: all 0.3s ease;
-        min-width: 150px;
-    }
-    
-    .popup-btn.next {
-        background: linear-gradient(135deg, #4CAF50, #2E7D32);
-        color: white;
-    }
-    
-    .popup-btn.retry {
-        background: linear-gradient(135deg, #2196F3, #0D47A1);
-        color: white;
-    }
-    
-    .popup-btn.menu {
-        background: linear-gradient(135deg, #FF9800, #E65100);
-        color: white;
-    }
-    
-    .popup-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(0,0,0,0.3);
-    }
-    
-    /* Animation for jump booster notification */
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutRight {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-    
-    /* Mobile control stick improvements */
-    .mobile-control-stick {
-        touch-action: none;
-        user-select: none;
-    }
-    
-    /* Boost indicator animation */
-    @keyframes pulseBoost {
-        0% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.7);
-        }
-        50% {
-            transform: scale(1.1);
-            box-shadow: 0 0 0 10px rgba(0, 255, 255, 0);
-        }
-        100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 255, 255, 0);
-        }
-    }
-    
-    .booster-btn.active {
-        animation: pulseBoost 1s infinite;
-    }
-    
-    /* Fullscreen controls */
-    .fullscreen-controls {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        display: flex;
-        gap: 10px;
-        z-index: 1000;
-    }
-    
-    /* Mobile fullscreen button */
-    .mobile-fullscreen-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 80px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: #2196F3;
-        color: white;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        z-index: 1000;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    }
-    
-    /* Responsive design */
-    @media (max-width: 768px) {
-        .level-complete-popup {
-            min-width: 300px;
-            max-width: 90%;
-            padding: 20px;
-        }
-        
-        .popup-btn {
-            min-width: 120px;
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .stick-area {
-            width: 120px;
-            height: 120px;
-            bottom: 80px;
-            left: 30px;
-        }
-        
-        .control-stick {
-            width: 50px;
-            height: 50px;
-        }
-    }
-`;
-
-// Add styles to document
-if (document.head) {
-    const styleElement = document.createElement('style');
-    styleElement.textContent = additionalStyles;
-    document.head.appendChild(styleElement);
-    console.log("🎨 Additional styles added to document");
-}
-
-// ========== HTML ELEMENTS TO ADD ==========
-/*
-Tambahkan elemen berikut ke HTML Anda:
-
-1. Tombol Fullscreen:
-<button id="fullscreenBtn" class="fullscreen-btn" title="Toggle Fullscreen">
-    <i class="fas fa-expand"></i>
-</button>
-
-2. Control Stick untuk Desktop:
-<div class="stick-area">
-    <div class="control-stick" id="controlStick"></div>
-</div>
-
-3. Tombol Fullscreen Mobile:
-<button id="mobileFullscreenBtn" class="mobile-fullscreen-btn" title="Fullscreen">
-    <i class="fas fa-expand"></i>
-</button>
-
-4. Enhanced Jump Booster Button (Desktop):
-<button id="useBoosterBtn" class="booster-btn">
-    <i class="fas fa-rocket"></i>
-    <span>JUMP BOOSTER</span>
-    <span class="booster-count">3</span>
-</button>
-
-5. Enhanced Jump Booster Button (Mobile):
-<button id="jumpBoosterBtn" class="action-btn-v2 booster-btn">
-    <i class="fas fa-rocket"></i>
-    <span class="booster-count">3</span>
-</button>
-
-6. Level Complete Popup (akan dibuat secara dinamis)
-*/
-
-console.log("🎮 Koko Adventure v4.0 - Enhanced Jump Booster System Loaded!");
-console.log("🚀 Fitur:");
-console.log("1. Jump Booster 3x per hidup");
-console.log("2. Reset saat karakter mati");
-console.log("3. Charges dipertahankan ke level berikutnya");
-console.log("4. Tombol control stick untuk mobile");
-console.log("5. Fullscreen support");
-console.log("6. Auto-progress ke level berikutnya");

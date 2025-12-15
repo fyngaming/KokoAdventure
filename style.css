@@ -1511,3 +1511,1135 @@ footer {
 .booster-active {
     filter: drop-shadow(0 0 10px rgba(255, 87, 34, 0.8));
 }
+
+
+/* ============================================= */
+/* MOBILE CONTROLS - FULLSCREEN ENHANCEMENTS */
+/* ============================================= */
+
+/* Hide mobile controls on desktop by default */
+@media (min-width: 769px) {
+    .mobile-controls {
+        display: none !important;
+    }
+}
+
+/* Show mobile controls in fullscreen on desktop */
+@media (min-width: 769px) {
+    .mobile-controls.fullscreen-visible {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 30px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 1000 !important;
+        background: rgba(30, 58, 42, 0.95) !important;
+        border: 3px solid #4CAF50 !important;
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
+        backdrop-filter: blur(5px);
+        min-width: 90%;
+        max-width: 800px;
+        padding: 20px !important;
+        border-radius: 15px !important;
+    }
+}
+
+/* Mobile controls in fullscreen - landscape optimization */
+@media (max-width: 1024px) and (orientation: landscape) {
+    .mobile-controls.fullscreen-visible {
+        bottom: 10px !important;
+        padding: 15px !important;
+        min-height: 140px !important;
+        max-width: 95% !important;
+    }
+    
+    .mobile-controls.fullscreen-visible .analog-container {
+        width: 120px !important;
+        height: 120px !important;
+    }
+    
+    .mobile-controls.fullscreen-visible .action-btn-v2 {
+        width: 70px !important;
+        height: 70px !important;
+    }
+}
+
+/* Mobile controls in fullscreen - portrait optimization */
+@media (max-width: 768px) and (orientation: portrait) {
+    .mobile-controls.fullscreen-visible {
+        bottom: 15px !important;
+        padding: 15px !important;
+        min-height: 180px !important;
+        max-width: 95% !important;
+        flex-direction: column;
+    }
+}
+
+/* ============================================= */
+/* AUTO-PROGRESS NOTIFICATION */
+/* ============================================= */
+
+.auto-progress-notification {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    font-weight: bold;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    animation: slideInDown 0.3s ease-out;
+    text-align: center;
+    border: 2px solid #81C784;
+}
+
+.jump-booster-notification {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background: linear-gradient(135deg, #00FFFF, #0088FF);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    animation: slideInRight 0.3s ease-out;
+    border: 2px solid #00FFFF;
+}
+
+.jump-booster-notification.error {
+    background: linear-gradient(135deg, #FF5252, #D32F2F);
+    border-color: #FF8A80;
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateX(-50%) translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutUp {
+    from {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-50%) translateY(-100%);
+        opacity: 0;
+    }
+}
+
+/* ============================================= */
+/* GAME CANVAS FULLSCREEN OPTIMIZATION */
+/* ============================================= */
+
+#gameCanvas:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    background: #87CEEB;
+    border: none;
+    border-radius: 0;
+}
+
+#gameCanvas:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    background: #87CEEB;
+    border: none;
+    border-radius: 0;
+}
+
+#gameCanvas:-moz-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    background: #87CEEB;
+    border: none;
+    border-radius: 0;
+}
+
+#gameCanvas:-ms-fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    background: #87CEEB;
+    border: none;
+    border-radius: 0;
+}
+
+/* ============================================= */
+/* FULLSCREEN CONTAINER STYLING */
+/* ============================================= */
+
+:fullscreen .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+:-webkit-full-screen .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+:-moz-full-screen .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+:-ms-fullscreen .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+/* ============================================= */
+/* HIDE UNNECESSARY ELEMENTS IN FULLSCREEN */
+/* ============================================= */
+
+:fullscreen .instructions,
+:fullscreen .level-selector,
+:fullscreen footer {
+    display: none !important;
+}
+
+:-webkit-full-screen .instructions,
+:-webkit-full-screen .level-selector,
+:-webkit-full-screen footer {
+    display: none !important;
+}
+
+:-moz-full-screen .instructions,
+:-moz-full-screen .level-selector,
+:-moz-full-screen footer {
+    display: none !important;
+}
+
+:-ms-fullscreen .instructions,
+:-ms-fullscreen .level-selector,
+:-ms-fullscreen footer {
+    display: none !important;
+}
+
+/* ============================================= */
+/* GAME CONTAINER IN FULLSCREEN */
+/* ============================================= */
+
+:fullscreen .game-container {
+    width: 100% !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+:-webkit-full-screen .game-container {
+    width: 100% !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+:-moz-full-screen .game-container {
+    width: 100% !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+:-ms-fullscreen .game-container {
+    width: 100% !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* ============================================= */
+/* GAME HEADER IN FULLSCREEN */
+/* ============================================= */
+
+:fullscreen .game-header {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    width: 95%;
+    align-self: center;
+}
+
+:-webkit-full-screen .game-header {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    width: 95%;
+    align-self: center;
+}
+
+:-moz-full-screen .game-header {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    width: 95%;
+    align-self: center;
+}
+
+:-ms-fullscreen .game-header {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    width: 95%;
+    align-self: center;
+}
+
+/* ============================================= */
+/* GAME CONTROLS IN FULLSCREEN */
+/* ============================================= */
+
+:fullscreen .game-controls {
+    margin-top: 10px;
+    width: 95%;
+    align-self: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+:-webkit-full-screen .game-controls {
+    margin-top: 10px;
+    width: 95%;
+    align-self: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+:-moz-full-screen .game-controls {
+    margin-top: 10px;
+    width: 95%;
+    align-self: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+:-ms-fullscreen .game-controls {
+    margin-top: 10px;
+    width: 95%;
+    align-self: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+/* ============================================= */
+/* JUMP BOOSTER DISPLAY IN FULLSCREEN */
+/* ============================================= */
+
+:fullscreen .booster-display {
+    width: 95%;
+    align-self: center;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+:-webkit-full-screen .booster-display {
+    width: 95%;
+    align-self: center;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+:-moz-full-screen .booster-display {
+    width: 95%;
+    align-self: center;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+:-ms-fullscreen .booster-display {
+    width: 95%;
+    align-self: center;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+
+
+/* ============================================= */
+/* LEVEL COMPLETE POPUP FIX */
+/* ============================================= */
+
+.level-complete-popup {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 10000 !important;
+    background: linear-gradient(135deg, #1a472a, #2a623d) !important;
+    padding: 30px !important;
+    border-radius: 20px !important;
+    border: 4px solid #4CAF50 !important;
+    box-shadow: 0 0 50px rgba(76, 175, 80, 0.6) !important;
+    min-width: 400px !important;
+    max-width: 600px !important;
+    display: none !important;
+}
+
+.level-complete-popup.show {
+    display: block !important;
+    animation: popupShow 0.5s ease-out !important;
+}
+
+.overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    z-index: 9999 !important;
+    display: none !important;
+}
+
+.overlay.show {
+    display: block !important;
+}
+
+@keyframes popupShow {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* ============================================= */
+/* GAME COMPLETE SCREEN */
+/* ============================================= */
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes popupScale {
+    from { 
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to { 
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(-100px) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* Confetti effect */
+.confetti {
+    position: fixed;
+    width: 15px;
+    height: 15px;
+    background: #FFD700;
+    top: -50px;
+    z-index: 10000;
+    animation: confettiFall 3s linear forwards;
+}
+
+.confetti:nth-child(2n) {
+    background: #4CAF50;
+}
+
+.confetti:nth-child(3n) {
+    background: #2196F3;
+}
+
+.confetti:nth-child(4n) {
+    background: #FF5252;
+}
+
+.confetti:nth-child(5n) {
+    background: #9C27B0;
+}
+
+/* Game complete buttons hover effects */
+#playAgainBtn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4);
+    background: linear-gradient(135deg, #2E7D32, #1B5E20) !important;
+}
+
+#mainMenuBtn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(33, 150, 243, 0.4);
+    background: linear-gradient(135deg, #0D47A1, #1565C0) !important;
+}
+
+/* Responsive game complete screen */
+@media (max-width: 768px) {
+    .game-complete-popup {
+        padding: 25px !important;
+        margin: 20px !important;
+    }
+    
+    .game-complete-popup h1 {
+        font-size: 2rem !important;
+    }
+    
+    .game-complete-popup h2 {
+        font-size: 1.5rem !important;
+    }
+    
+    .final-stats {
+        padding: 15px !important;
+    }
+    
+    #playAgainBtn, #mainMenuBtn {
+        min-width: 150px !important;
+        padding: 12px 20px !important;
+        font-size: 1rem !important;
+    }
+}
+
+/* Celebration animation */
+@keyframes celebrate {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.game-complete-popup h1 {
+    animation: celebrate 2s infinite;
+}
+
+/* Star rating */
+.star-rating {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.star-rating i {
+    color: #FFD700;
+    font-size: 2.5rem;
+    animation: starTwinkle 1.5s infinite;
+}
+
+.star-rating i:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.star-rating i:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+.star-rating i:nth-child(4) {
+    animation-delay: 0.9s;
+}
+
+.star-rating i:nth-child(5) {
+    animation-delay: 1.2s;
+}
+
+@keyframes starTwinkle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+
+/* ============================================= */
+/* GAME COMPLETE ANIMATIONS */
+/* ============================================= */
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes popupScale {
+    from { 
+        opacity: 0;
+        transform: translateY(-50px) scale(0.8);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes celebrate {
+    0%, 100% { 
+        transform: scale(1);
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+    50% { 
+        transform: scale(1.05);
+        text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+    }
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(-100px) rotate(0deg);
+        opacity: 1;
+    }
+    70% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+@keyframes starTwinkle {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+/* Confetti effect */
+.confetti {
+    position: fixed;
+    width: 15px;
+    height: 15px;
+    background: #FFD700;
+    top: -50px;
+    z-index: 10001;
+    animation: confettiFall 3s linear forwards;
+    pointer-events: none;
+}
+
+.confetti:nth-child(2n) {
+    background: #4CAF50;
+}
+
+.confetti:nth-child(3n) {
+    background: #2196F3;
+}
+
+.confetti:nth-child(4n) {
+    background: #FF5252;
+}
+
+.confetti:nth-child(5n) {
+    background: #9C27B0;
+}
+
+/* Star rating animation */
+.star-rating i {
+    color: #FFD700;
+    font-size: 2.5rem;
+    margin: 0 5px;
+    animation: starTwinkle 1.5s infinite;
+    display: inline-block;
+}
+
+.star-rating i:nth-child(1) { animation-delay: 0s; }
+.star-rating i:nth-child(2) { animation-delay: 0.3s; }
+.star-rating i:nth-child(3) { animation-delay: 0.6s; }
+.star-rating i:nth-child(4) { animation-delay: 0.9s; }
+.star-rating i:nth-child(5) { animation-delay: 1.2s; }
+
+/* Game complete buttons hover effects */
+#playAgainBtn:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 10px 25px rgba(76, 175, 80, 0.5) !important;
+    background: linear-gradient(135deg, #2E7D32, #1B5E20) !important;
+}
+
+#mainMenuBtn:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 10px 25px rgba(33, 150, 243, 0.5) !important;
+    background: linear-gradient(135deg, #0D47A1, #1565C0) !important;
+}
+
+/* ============================================= */
+/* AUTO-PROGRESS NOTIFICATION - ADD TO EXISTING CSS */
+/* ============================================= */
+
+.auto-progress-notification {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    font-weight: bold;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    animation: slideInDown 0.3s ease-out;
+    text-align: center;
+    border: 2px solid #81C784;
+}
+
+.jump-booster-notification {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background: linear-gradient(135deg, #00FFFF, #0088FF);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    animation: slideInRight 0.3s ease-out;
+    border: 2px solid #00FFFF;
+}
+
+.jump-booster-notification.error {
+    background: linear-gradient(135deg, #FF5252, #D32F2F);
+    border-color: #FF8A80;
+}
+
+/* ============================================= */
+/* FULLSCREEN OPTIMIZATION - ADD TO EXISTING CSS */
+/* ============================================= */
+
+#gameCanvas:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    background: #87CEEB;
+    border: none;
+    border-radius: 0;
+}
+
+#gameCanvas:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    background: #87CEEB;
+    border: none;
+    border-radius: 0;
+}
+
+/* Mobile controls in fullscreen */
+.mobile-controls.fullscreen-visible {
+    position: fixed !important;
+    bottom: 30px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 1000 !important;
+    background: rgba(30, 58, 42, 0.95) !important;
+    border: 3px solid #4CAF50 !important;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
+    backdrop-filter: blur(5px);
+    min-width: 90%;
+    max-width: 800px;
+    padding: 20px !important;
+    border-radius: 15px !important;
+    display: flex !important;
+}
+
+/* HUD controls in fullscreen */
+.hud-controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Hide unnecessary elements in fullscreen */
+:fullscreen .instructions,
+:fullscreen .level-selector,
+:fullscreen footer,
+:fullscreen .booster-display,
+:-webkit-full-screen .instructions,
+:-webkit-full-screen .level-selector,
+:-webkit-full-screen footer,
+:-webkit-full-screen .booster-display {
+    display: none !important;
+}
+
+/* Game container in fullscreen */
+:fullscreen .game-container,
+:-webkit-full-screen .game-container {
+    width: 100% !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Game header in fullscreen */
+:fullscreen .game-header,
+:-webkit-full-screen .game-header {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    width: 95%;
+    align-self: center;
+}
+
+/* Game controls in fullscreen */
+:fullscreen .game-controls,
+:-webkit-full-screen .game-controls {
+    margin-top: 10px;
+    width: 95%;
+    align-self: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+/* ============================================= */
+/* LEVEL COMPLETE POPUP FIX - ADD TO EXISTING CSS */
+/* ============================================= */
+
+.level-complete-popup {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) scale(0.8) !important;
+    z-index: 10000 !important;
+    background: linear-gradient(135deg, #1a472a, #2a623d) !important;
+    padding: 30px !important;
+    border-radius: 20px !important;
+    border: 4px solid #4CAF50 !important;
+    box-shadow: 0 0 50px rgba(76, 175, 80, 0.6) !important;
+    min-width: 400px !important;
+    max-width: 600px !important;
+    display: none !important;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.level-complete-popup.show {
+    display: block !important;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) !important;
+}
+
+.overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    z-index: 9999 !important;
+    display: none !important;
+}
+
+.overlay.show {
+    display: block !important;
+}
+
+@keyframes popupShow {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* ============================================= */
+/* STYLES UNTUK POPUP LEVEL COMPLETE BARU */
+/* ============================================= */
+
+.level-complete-popup-v2 {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) scale(0.9) !important;
+    z-index: 10001 !important;
+    background: linear-gradient(135deg, #1a472a, #2a623d) !important;
+    padding: 40px !important;
+    border-radius: 25px !important;
+    border: 5px solid #4CAF50 !important;
+    box-shadow: 0 0 50px rgba(76, 175, 80, 0.7) !important;
+    min-width: 500px !important;
+    max-width: 600px !important;
+    display: none !important;
+    opacity: 0;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.level-complete-popup-v2.show {
+    display: block !important;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) !important;
+    animation: popupShowV2 0.5s ease-out !important;
+}
+
+@keyframes popupShowV2 {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.level-complete-popup-v2 h2 {
+    color: #4CAF50;
+    margin-bottom: 25px;
+    font-size: 2.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.level-complete-popup-v2 .stats-container {
+    background: rgba(30, 58, 42, 0.9);
+    padding: 25px;
+    border-radius: 15px;
+    margin: 25px 0;
+    border: 2px solid #4CAF50;
+}
+
+.level-complete-popup-v2 .stats-container div {
+    display: flex;
+    justify-content: space-between;
+    margin: 15px 0;
+    color: #a5d6a7;
+    font-size: 1.2rem;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.level-complete-popup-v2 .stats-container div:last-child {
+    border-bottom: none;
+    border-top: 2px solid #4CAF50;
+    margin-top: 20px;
+    padding-top: 20px;
+    font-weight: bold;
+}
+
+.level-complete-popup-v2 .stats-container span {
+    color: white;
+    font-weight: bold;
+    font-size: 1.4rem;
+}
+
+.level-complete-popup-v2 .booster-info {
+    background: rgba(0, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+    border: 2px solid #00FFFF;
+}
+
+.popup-buttons-v2 {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 30px;
+    flex-wrap: wrap;
+}
+
+.popup-btn-v2 {
+    padding: 18px 35px;
+    border: none;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 1.3rem;
+    min-width: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.popup-btn-v2.continue {
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+    border: 2px solid #81C784;
+}
+
+.popup-btn-v2.retry {
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: white;
+    border: 2px solid #FFB74D;
+}
+
+.popup-btn-v2.menu {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    color: white;
+    border: 2px solid #64B5F6;
+}
+
+.popup-btn-v2:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.popup-btn-v2:active {
+    transform: translateY(2px);
+}
+
+/* Animasi untuk button lanjut */
+@keyframes pulseContinue {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(76, 175, 80, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+.popup-btn-v2.continue.pulse {
+    animation: pulseContinue 2s infinite;
+}
+
+/* Responsive untuk popup baru */
+@media (max-width: 768px) {
+    .level-complete-popup-v2 {
+        min-width: 320px !important;
+        max-width: 90% !important;
+        padding: 30px !important;
+        margin: 0 15px !important;
+    }
+    
+    .level-complete-popup-v2 h2 {
+        font-size: 2rem !important;
+    }
+    
+    .popup-buttons-v2 {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .popup-btn-v2 {
+        width: 100% !important;
+        min-width: auto !important;
+        padding: 15px 25px !important;
+        font-size: 1.1rem !important;
+    }
+}
+
+/* Overlay untuk popup */
+.overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    z-index: 10000 !important;
+    display: none !important;
+}
+
+.overlay.show {
+    display: block !important;
+}
+
